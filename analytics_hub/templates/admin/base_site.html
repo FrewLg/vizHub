@@ -1,0 +1,26 @@
+{% extends "admin/base.html" %}
+
+{% block branding %}
+<h1 id="site-name">
+    <a href="{% url 'admin:index' %}" style="display: flex; align-items: center; text-decoration: none; color: white;">
+        <img src="https://irb.ephi.gov.et/files/site_setting/3a36ebf9b1124f21ee0d704e36272ec9.png" style="height: 32px; margin-right: 10px;" alt="Logo"/>
+        <span>EPHI Analytics Admin</span>
+    </a>
+</h1>
+{% endblock %}
+
+{% block nav-global %}{% endblock %}
+
+
+<!-- Inside templates/admin/base_site.html (at the bottom) -->
+{% block extrahead %}
+{{ block.super }}
+<!-- Embed your Chatbot Script Below -->
+<script>
+    window.embeddedChatbotConfig = {
+      chatbotId: "YOUR_CHATBOT_ID",
+      domain: "www.ephi.gov.et"
+    }
+</script>
+<script src="https://your-chatbot-hosting.com/widget.js" defer></script>
+{% endblock %}

@@ -1,0 +1,203 @@
+import json
+from django.db.models import Sum
+from django.shortcuts import render, redirect
+from django.contrib import messages
+#from .models import GBDRecord
+from .utils import process_excel_upload
+
+from django.http import HttpResponse
+from .utils_pdf import generate_gbd_pdf_report
+
+#from django.shortcuts import render
+from django.utils.translation import get_language
+
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from .models import GBDRecord
+
+
+import pandas as pd
+from datetime import datetime
+from .forms import ExcelUploadForm
+
+
+@csrf_exempt
+def ai_chatbot_api(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            user_message = data.get('message', '').lower()
+            
+            # Simple intelligent mock response or integrate OpenAI/LLM here
+            if 'disease' in user_message or 'malaria' in user_message:
+                response_text = "Based on current GBD records, malaria cases peak heavily during seasonal rainy months in tropical regions."
+            elif 'region' in user_message:
+                response_text = "You can filter specific regions using the multi-select dropdown at the top of your dashboard."
+            else:
+                response_text = f"I received your query: '{user_message}'. VizHub AI assistant is ready to help analyze your GBD health metrics!"
+                
+            return JsonResponse({'status': 'success', 'reply': response_text})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+    return JsonResponse({'error': 'Invalid request'}, status=400)
+
+
+def my_view(request):
+    current_locale = get_language()           # Gets language from current thread
+    request_locale = request.LANGUAGE_CODE    # Gets language bound to the request
+    
+    print(f"Current Active Locale: {current_locale}")
+    
+    # You can pass it into context dictionaries if needed
+    return render(request, 'analytics_hub/dashboard.html', {'active_locale': current_locale})
+
+def custom_login_view(request):
+    return render(request, 'analytics_hub/auth_login.html')
+
+def custom_signup_view(request):
+    return render(request, 'analytics_hub/auth_signup.html')
+
+
+
+########
+
+# analytics_hub/views.py
+# analytics_hub/views.py
+
+def dashboard_view(request):
+    # Handle Excel Upload POST request
+    if request.method == 'POST' and 'excel_file' in request.FILES:
+        form = ExcelUploadForm(request.POST, request.FILES)
+        if form.is_valid():
+            excel_file = request.FILES['excel_file']
+            try:
+                df = pd.read_excel(excel_file)
+                records_to_create = []
+                for _, row in df.iterrows():
+                    rec_date = row.get('date')
+                    if pd.isna(rec_date):
+                        rec_date = datetime.now().date()
+                    else:
+                        rec_date = pd.to_datetime(rec_date).date()
+
+                    records_to_create.append(
+                        GBDRecord(
+                            topic=str(row.get('topic', 'covid_19')),
+                            date=rec_date,
+                            disease=str(row.get('disease', '')) if pd.notna(row.get('disease')) else None,
+                            age_group=str(row.get('age_group', '')) if pd.notna(row.get('age_group')) else None,
+                            facility=str(row.get('facility', '')) if pd.notna(row.get('facility')) else None,
+                            location=str(row.get('location', 'Addis Ababa')),
+                            metric_value=float(row.get('metric_value', 0.0)) if pd.notna(row.get('metric_value')) else 0.0
+                        )
+                    )
+                GBDRecord.objects.bulk_create(records_to_create)
+                messages.success(request, f"Successfully imported {len(records_to_create)} records from Excel!")
+                return redirect('dashboard')
+            except Exception as e:
+                messages.error(request, f"Error processing Excel file: {e}")
+        else:
+            messages.error(request, "Invalid file format uploaded.")
+
+    # Fetch distinct options for dynamic filtering lists
+    topics = GBDRecord.TOPIC_CHOICES
+    diseases = GBDRecord.objects.exclude(disease__isnull=True).exclude(disease='').values_list('disease', flat=True).distinct()
+    age_groups = GBDRecord.objects.exclude(age_group__isnull=True).exclude(age_group='').values_list('age_group', flat=True).distinct()
+    facilities = GBDRecord.objects.exclude(facility__isnull=True).exclude(facility='').values_list('facility', flat=True).distinct()
+    locations = GBDRecord.objects.exclude(location__isnull=True).exclude(location='').values_list('location', flat=True).distinct()
+
+    # Capture multi-select checkboxes and parameters from GET query string
+    selected_topics = request.GET.getlist('topic')
+    selected_diseases = request.GET.getlist('disease')
+    selected_ages = request.GET.getlist('age_group')
+    selected_facilities = request.GET.getlist('facility')
+    selected_locations = request.GET.getlist('location')
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+
+    # Base Queryset
+    queryset = GBDRecord.objects.all()
+
+    # Apply dynamic filtering matching checkboxes and criteria
+    if selected_topics:
+        queryset = queryset.filter(topic__in=selected_topics)
+    if selected_diseases:
+        queryset = queryset.filter(disease__in=selected_diseases)
+    if selected_ages:
+        queryset = queryset.filter(age_group__in=selected_ages)
+    if selected_facilities:
+        queryset = queryset.filter(facility__in=selected_facilities)
+    if selected_locations:
+        queryset = queryset.filter(location__in=selected_locations)
+    if date_from:
+        queryset = queryset.filter(date__gte=date_from)
+    if date_to:
+        queryset = queryset.filter(date__lte=date_to)
+
+    # Compute figures summary
+    total_metrics = queryset.aggregate(total=Sum('metric_value'))['total'] or 0.0
+
+    context = {
+        'records': queryset[:100],
+        'total_metrics': total_metrics,
+        'topics': topics,
+        'diseases': diseases,
+        'age_groups': age_groups,
+        'facilities': facilities,
+        'locations': locations,
+        'selected_topics': selected_topics,
+        'selected_diseases': selected_diseases,
+        'selected_ages': selected_ages,
+        'selected_facilities': selected_facilities,
+        'selected_locations': selected_locations,
+        'date_from': date_from,
+        'date_to': date_to,
+        'upload_form': ExcelUploadForm(),
+    }
+    return render(request, 'analytics_hub/dashboard.html', context)
+
+#########
+def upload_view(request):
+    if request.method == 'POST' and request.FILES.get('excel_file'):
+        try:
+            process_excel_upload(request.FILES['excel_file'])
+            messages.success(request, "Data successfully appended to the GBD database!")
+        except Exception as e:
+            messages.error(request, f"Error processing file: {e}")
+    return redirect('dashboard')
+#########
+
+def download_pdf_report(request):
+    selected_regions = request.GET.getlist('regions')
+    selected_facilities = request.GET.getlist('facilities')
+    selected_diseases = request.GET.getlist('diseases')
+    selected_age = request.GET.get('age_group', '')
+    year_from = request.GET.get('year_from', '')
+    year_to = request.GET.get('year_to', '')
+
+    records = GBDRecord.objects.all()
+    if selected_regions:
+        records = records.filter(region__in=selected_regions)
+    if selected_facilities:
+        records = records.filter(facility__in=selected_facilities)
+    if selected_diseases:
+        records = records.filter(disease__in=selected_diseases)
+    if selected_age:
+        records = records.filter(age_group=selected_age)
+    if year_from and year_from.isdigit():
+        records = records.filter(year__gte=int(year_from))
+    if year_to and year_to.isdigit():
+        records = records.filter(year__lte=int(year_to))
+
+    filter_params = {
+        'regions': ", ".join(selected_regions) if selected_regions else 'All',
+        'facilities': ", ".join(selected_facilities) if selected_facilities else 'All',
+        'diseases': ", ".join(selected_diseases) if selected_diseases else 'All',
+        'year_range': f"{year_from or 'Start'} to {year_to or 'Present'}",
+        'age_group': selected_age or 'All',
+    }
+
+    pdf_file = generate_gbd_pdf_report(records, filter_params)
+    response = HttpResponse(pdf_file, content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="VizHub_GBD_Report.pdf"'
+    return response

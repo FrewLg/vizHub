@@ -1,0 +1,423 @@
+{% load i18n %}
+{% load socialaccount %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+    <title>EPHI VizHub - GBD Health Data Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<!-- Select2 CSS CDN -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+
+<link rel="icon" href="https://irb.ephi.gov.et/files/site_setting/3a36ebf9b1124f21ee0d704e36272ec9.png">
+    <style>
+        :root {
+            --navy-primary: #0a192f;
+            --samsung-green: #007f5f;
+            --navy-light: #172a45;
+        }
+        body {
+            background-color: #f4f7f6;
+            color: #333;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        /* Floating Top Menu */
+        .floating-navbar {
+            position: fixed;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 1200px;
+            background-color: var(--navy-primary) !important;
+            z-index: 1030;
+            border-radius: 50px;
+            padding: 10px 25px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+        }
+        .navbar-brand, .nav-link {
+            color: #ffffff !important;
+        }
+        .nav-link:hover {
+            color: var(--samsung-green) !important;
+        }
+        .header-banner {
+            background-color: var(--navy-primary);
+            color: white;
+            border-left: 6px solid var(--samsung-green);
+            border-radius: 8px;
+        }
+        .btn-samsung {
+            background-color: var(--samsung-green);
+            color: white;
+        }
+        .btn-samsung:hover {
+            background-color: #005f43;
+            color: white;
+        }
+        .main-content {
+            padding-top: 100px; /* Spacer for floating menu */
+        }
+    </style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+</head>
+<body>
+
+    <nav class="navbar navbar-expand-lg navbar-dark floating-navbar">
+        <div class="container-fluid">
+            <a class="navbar-brand fw-bold" href="#">
+<img src="https://irb.ephi.gov.et/files/site_setting/3a36ebf9b1124f21ee0d704e36272ec9.png" style="height:40px;padding:1px;margin-right:14px;"/>Viz<span style="color: var(--samsung-green); margin-left:2px;">Hub</span></a>
+
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
+                <ul class="navbar-nav align-items-center">
+                    <li class="nav-item"><a class="nav-link active" href="#">Public Dashboard</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#upload-section">Upload Data</a></li>
+<!-- Authentication Status Check -->
+                    {% if user.is_authenticated %}
+                        <li class="nav-item text-white ms-3 small">
+                             <strong>{{ user.email|default:user.username }}</strong>
+                        </li>
+                        <li class="nav-item ms-2">
+                            <form method="POST" action="{% url 'account_logout' %}">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-outline-light btn-sm">Sign Out</button>
+                            </form>
+                        </li>
+                    {% else %}
+                        <li class="nav-item ms-3">
+                            <a href="{% url 'google_login' %}" class="btn btn-light btn-sm text-dark fw-bold">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-google me-1" viewBox="0 0 16 16">
+                                  <path d="M15.545 6.558a9.42 9.42 0 0 1 .139 1.626c0 2.434-.87 4.492-2.384 5.885h.002C11.978 15.292 10.158 16 8 16A8 8 0 1 1 8 0a7.689 7.689 0 0 1 5.352 2.082l-2.284 2.284A4.347 4.347 0 0 0 8 3.166c-2.087 0-3.86 1.408-4.492 3.304a4.792 4.792 0 0 0 0 3.063c.632 1.896 2.405 3.303 4.492 3.303.955 0 1.838-.28 2.538-.753-.51-.433-.948-.962-1.291-1.573a4.475 4.475 0 0 1-1.247.177 4.316 4.316 0 0 1-4.322-4.322c0-2.385 1.937-4.322 4.322-4.322a4.316 4.316 0 0 1 3.522 1.815l2.04-2.04A7.545 7.545 0 0 0 8 1.15a6.85 6.85 0 0 0-6.85 6.85 6.85 6.85 0 0 0 6.85 6.85c3.553 0 6.136-2.585 6.136-6.136 0-.41-.035-.82-.104-1.22H8v2.44h4.43c-.22 1.163-.895 2.13-1.85 2.766z"/>
+                                </svg>
+                                Sign in with Google
+                            </a>
+                        </li>
+                    {% endif %}
+<li class="nav-item ms-3">
+    {% get_current_language as LANGUAGE_CODE %}
+    <select class="form-select form-select-sm bg-dark text-white border-0" id="localeSelect">
+        <option value="en" {% if LANGUAGE_CODE == 'en' %}selected{% endif %}>English</option>
+        <option value="fr" {% if LANGUAGE_CODE == 'fr' %}selected{% endif %}>Français</option>
+        <option value="am" {% if LANGUAGE_CODE == 'am' %}selected{% endif %}>Amharic</option>
+        <option value="es" {% if LANGUAGE_CODE == 'es' %}selected{% endif %}>Español</option>
+    </select>
+</li>                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container main-content my-4">
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+        
+        <div class="p-4 mb-4 shadow-sm header-banner">
+            <span class="sdisplay-6 fw-bolder">{% trans "Global Burden of Disease (GBD) Analytics" %}</span>
+            <p class="mb-0" style="color: #a8b2d1;">{% trans "Filter public health surveillance parameters, view geomaps, and ingest dataset records securely" %}.</p>
+        </div>
+
+<!-- Advanced Filter Form Control Center -->
+        <div class="card shadow-sm mb-4 border-0">
+            <div class="card-body bg-white rounded">
+                <h5 class="card-title mb-3 fw-bold" style="color: var(--navy-primary);">Advanced Parameter Filters</h5>
+                <form method="GET" class="row g-3">
+                    
+                    <!-- Multiple Regions -->
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold">Regions (Multi-select)</label>
+                        <select name="regions" class="form-select form-select-sm select2-multiple" multiple>
+                            {% for reg in regions %}
+                                <option value="{{ reg }}" {% if reg in selected_regions %}selected{% endif %}>{{ reg }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Multiple Facilities -->
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold">Facilities (Multi-select)</label>
+                        <select name="facilities" class="form-select form-select-sm select2-multiple" multiple>
+                            {% for fac in facilities %}
+                                <option value="{{ fac }}" {% if fac in selected_facilities %}selected{% endif %}>{{ fac }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Multiple Diseases -->
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold">Diseases (Multi-select)</label>
+                        <select name="diseases" class="form-select form-select-sm select2-multiple" multiple>
+                            {% for dis in diseases %}
+                                <option value="{{ dis }}" {% if dis in selected_diseases %}selected{% endif %}>{{ dis }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Age Group -->
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold">Age Group</label>
+                        <select name="age_group" class="form-select form-select-sm">
+                            <option value="">All Ages</option>
+                            {% for age in age_groups %}
+                                <option value="{{ age }}" {% if selected_age == age %}selected{% endif %}>{{ age }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Year From / To Range -->
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold">Year From</label>
+                        <select name="year_from" class="form-select form-select-sm">
+                            <option value="">Start Year</option>
+                            {% for yr in years %}
+                                <option value="{{ yr }}" {% if year_from == yr|stringformat:"i" %}selected{% endif %}>{{ yr }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold">Year To</label>
+                        <select name="year_to" class="form-select form-select-sm">
+                            <option value="">End Year</option>
+                            {% for yr in years %}
+                                <option value="{{ yr }}" {% if year_to == yr|stringformat:"i" %}selected{% endif %}>{{ yr }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Buttons -->
+                    <div class="col-md-6 d-flex align-items-end gap-2">
+                        <button type="submit" class="btn btn-samsung btn-sm w-50 fw-bold">Apply Filters</button>
+                        <a href="{% url 'export_pdf' %}?{{ request.GET.urlencode }}" class="btn btn-outline-dark btn-sm w-50 fw-bold text-center" style="font-size: 13px; line-height: 1.8;">Export PDF Report</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+<!-- Visualizations Grid -->
+<!-- Visualizations Grid -->
+        <div class="row g-4 mb-4">
+            <div class="col-lg-8">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-body">
+                        <h6 class="card-title fw-bold" style="color: var(--navy-primary);">Regional Geomap Visualization</h6>
+                        <hr>
+                        <!-- Live Leaflet Map Target Element -->
+                        <div id="gbdMap" class="rounded" style="height: 380px; width: 100%;"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-body">
+                        <h6 class="card-title fw-bold" style="color: var(--navy-primary);">Metric Breakdown by Disease</h6>
+                        <hr>
+                        <div class="p-2 mb-2 bg-light rounded d-flex justify-content-between align-items-center">
+                            <span class="text-muted small text-uppercase fw-bold">Filtered Records Match</span>
+                            <span class="badge bg-dark">{{ total_count }}</span>
+                        </div>
+                        <div style="position: relative; height: 250px; width: 100%;">
+                            <canvas id="diseaseChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+{% if user.is_authenticated %}
+        <div id="upload-section" class="card shadow-sm border-0 mb-5">
+            <div class="card-body">
+                <h5 class="card-title fw-bold" style="color: var(--navy-primary);">Append Data to Database via Excel</h5>
+                <p class="text-muted small">Upload an Excel file (.xlsx) containing headers: <code>region</code>, <code>facility</code>, <code>disease</code>, <code>year</code>, <code>age_group</code>, <code>metric_value</code>.</p>
+                <form action="{% url 'upload_data' %}" method="POST" enctype="multipart/form-data" class="row g-3">
+                    {% csrf_token %}
+                    <div class="col-md-5">
+                        <input type="file" name="excel_file" class="form-control form-control-sm" accept=".xlsx, .xls" required>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-outline-dark btn-sm w-100 fw-bold">{% trans "Upload" %}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    </div>
+{% endif  %}
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"></script>
+<!-- Chart.js Initialization Script -->
+    <script>
+        const ctx = document.getElementById('diseaseChart').getContext('2d');
+        const diseaseChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: {{ chart_labels|safe }},
+                datasets: [{
+                    label: 'Metric Value Sum',
+                    data: {{ chart_values|safe }},
+                    backgroundColor: '#007f5f', /* Samsung Green */
+                    borderColor: '#0a192f',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: { beginAtZero: true }
+                }
+            }
+        });
+    </script>
+
+<!-- Leaflet JS CDN -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- jQuery (Required for Select2) -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<!-- Select2 JS CDN -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+    $(document).ready(function() {
+        $('.select2-multiple').select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            placeholder: 'Select options...'
+        });
+    });
+</script>
+
+<script>
+    // Initialize Leaflet Map centered globally (e.g., coordinates [15, 0] with zoom 2)
+    const map = L.map('gbdMap').setView([15.0, 0.0], 2);
+
+    // Add OpenStreetMap tile layer styling
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 18,
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Optional: Sample regional pin markers injected from your filtered dataset context
+    // If you add lat/lon fields to your model later, they will map directly here.
+    const sampleRegions = [
+        { name: "North Region", coords: [20.0, 10.0] },
+        { name: "South Region", coords: [-20.0, 20.0] },
+        { name: "East Region", coords: [5.0, 35.0] },
+        { name: "West Region", coords: [10.0, -10.0] }
+    ];
+
+    sampleRegions.forEach(reg => {
+        L.marker(reg.coords).addTo(map)
+          .bindPopup(`<b>Region:</b> ${reg.name}`);
+    });
+</script>
+<script>
+    $(document).ready(function() {
+        $('.select2-multiple').select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            placeholder: 'Select options...'
+        });
+
+        // Fixed endpoint: /i18n/setlang/
+        $('#localeSelect').on('change', function() {
+            const selectedLang = $(this).val();
+            const form = $(
+                `<form action="/i18n/setlang/" method="POST">` +
+                `{% csrf_token %}` +
+                `<input type="hidden" name="language" value="${selectedLang}">` +
+                `<input type="hidden" name="next" value="{{ request.path }}">` +
+                `</form>`
+            );
+            $('body').append(form);
+            form.submit();
+        });
+
+        $('#localeSelect').val('{{ LANGUAGE_CODE }}');
+    });
+</script>
+<!-- Floating AI Chatbot Widget -->
+<div id="ai-chat-widget" style="position: fixed; bottom: 20px; right: 20px; z-index: 1050; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+    <!-- Toggle Button -->
+    <button id="chat-toggle-btn" class="btn text-white rounded-circle shadow-lg d-flex align-items-center justify-content-center" style="width: 55px; height: 55px; background-color: var(--samsung-green, #007f5f);">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-chat-dots-fill" viewBox="0 0 16 16">
+            <path d="M16 8c0 3.866-3.582 7-8 7a9.06 9.06 0 0 1-2.343-.306l-4.522 1.158a.5.5 0 0 1-.606-.606l1.158-4.522A9.587 9.587 0 0 1 1 8c0-3.866 3.582-7 8-7s8 3.134 8 7zM5 8a1 1 0 1 0-2 0 1 1 0 0 0 2 0zm4 0a1 1 0 1 0-2 0 1 1 0 0 0 2 0zm3 1a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"/>
+        </svg>
+    </button>
+
+    <!-- Chat Box Container (Hidden by default) -->
+    <div id="chat-box" class="card shadow-lg border-0 d-none" style="width: 340px; height: 450px; position: absolute; bottom: 70px; right: 0; border-radius: 12px; overflow: hidden;">
+        <!-- Header -->
+        <div class="card-header text-white d-flex justify-content-between align-items-center py-3" style="background-color: var(--navy-primary, #0a192f);">
+            <span class="fw-bold">VizHub AI Assistant</span>
+            <button id="chat-close-btn" class="btn-close btn-close-white btn-sm"></button>
+        </div>
+        <!-- Messages Area -->
+        <div id="chat-messages" class="card-body bg-light overflow-auto p-3" style="height: 330px; font-size: 0.85rem;">
+            <div class="mb-2 text-start">
+                <span class="d-inline-block p-2 rounded bg-white text-dark shadow-sm">Hello! How can I help you analyze your GBD data today?</span>
+            </div>
+        </div>
+        <!-- Input Form -->
+        <div class="card-footer bg-white p-2 border-top">
+            <form id="chat-form" class="input-group">
+                <input type="text" id="chat-input" class="form-control form-control-sm" placeholder="Ask about diseases, regions..." required>
+                <button class="btn btn-sm text-white" type="submit" style="background-color: var(--samsung-green, #007f5f);">Send</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Chat Widget Script -->
+<script>
+    $(document).ready(function() {
+        $('#chat-toggle-btn').click(function() {
+            $('#chat-box').toggleClass('d-none');
+        });
+        $('#chat-close-btn').click(function() {
+            $('#chat-box').addClass('d-none');
+        });
+
+        $('#chat-form').submit(function(e) {
+            e.preventDefault();
+            const inputField = $('#chat-input');
+            const messageText = inputField.val().trim();
+            if (!messageText) return;
+
+            // Append User Message
+            $('#chat-messages').append(`<div class="mb-2 text-end"><span class="d-inline-block p-2 rounded text-white" style="background-color: var(--navy-primary, #0a192f);">${messageText}</span></div>`);
+            inputField.val('');
+            $('#chat-messages').scrollTop($('#chat-messages')[0].scrollHeight);
+
+            // AJAX call to backend
+            fetch("{% url 'ai_chatbot_api' %}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: messageText })
+            })
+            .then(res => res.json())
+            .then(data => {
+                const reply = data.reply || "Sorry, I couldn't process that.";
+                $('#chat-messages').append(`<div class="mb-2 text-start"><span class="d-inline-block p-2 rounded bg-white text-dark shadow-sm">${reply}</span></div>`);
+                $('#chat-messages').scrollTop($('#chat-messages')[0].scrollHeight);
+            })
+            .catch(err => console.error("Chat Error:", err));
+        });
+    });
+</script>
+</body>
+</html>

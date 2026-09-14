@@ -1,0 +1,92 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-09-09 06:31+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: analytics_hub/templates/analytics_hub/dashboard.html:169
+msgid "Health Data Visualization"
+msgstr "የጤና መረጃ ምስላዊ ትንተና"
+
+#: analytics_hub/templates/analytics_hub/dashboard.html:217
+msgid "Advaced Search"
+msgstr "የላቀ ፍለጋ"
+
+#: analytics_hub/templates/analytics_hub/dashboard.html:224
+msgid "Analytics Topic"
+msgstr "የትንታኔ ርዕስ"
+
+#: analytics_hub/templates/analytics_hub/dashboard.html:237
+msgid "Date Range"
+msgstr "የቀን ገደብ"
+
+#: analytics_hub/templates/analytics_hub/dashboard.html:240
+msgid "From"
+msgstr "ከ"
+
+#: analytics_hub/templates/analytics_hub/dashboard.html:244
+msgid "To"
+msgstr "እስከ"
+
+#: analytics_hub/templates/analytics_hub/dashboard.html:265
+msgid "Age Group"
+msgstr "የዕድሜ ክልል"
+
+#: analytics_hub/templates/analytics_hub/dashboard.html:278
+msgid "Facility"
+msgstr "ተቋም"
+
+#: analytics_hub/templates/analytics_hub/dashboard.html:291
+msgid "Location"
+msgstr "አካባቢ"
+
+#: analytics_hub/templates/analytics_hub/dashboard.html:304
+msgid "Apply Filters"
+msgstr "ማጣሪያዎችን ተግብር"
+
+#: analytics_hub/templates/analytics_hub/dashboard.html:305
+msgid "Reset"
+msgstr "ዳግም አስጀምር"
+
+#: analytics_hub/templates/analytics_hub/dashboard.html:318
+#: analytics_hub/templates/analytics_hub/olddashboard.html:249
+msgid "Upload"
+msgstr "ስቀል"
+
+#: analytics_hub/templates/analytics_hub/dashboard.html:331
+msgid "Download PDF Report"
+msgstr "የፒዲኤፍ ሪፖርት ያውርዱ"
+
+#: analytics_hub/templates/analytics_hub/dashboard.html:349
+#: analytics_hub/templates/analytics_hub/dashboard.html:360
+msgid "Download chart"
+msgstr "ቻርት አውርድ"
+
+#: analytics_hub/templates/analytics_hub/dashboard.html:372
+msgid "Download Table"
+msgstr "ሰንጠረዥ አውርድ"
+
+#: analytics_hub/templates/analytics_hub/olddashboard.html:127
+msgid "Global Burden of Disease (GBD) Analytics"
+msgstr "የአለም አቀፍ የበሽታ ሸክም (GBD) ትንታኔ"
+
+#: analytics_hub/templates/analytics_hub/olddashboard.html:128
+msgid ""
+"Filter public health surveillance parameters, view geomaps, and ingest "
+"dataset records securely"
+msgstr ""
+"የህዝብ ጤና ክትትል መለኪያዎችን ያጣሩ፣ የጂኦግራፊያዊ ካርታዎችን ይመልከቱ እና የመረጃ ስብስብ መዝገቦችን ደህንነቱ "
+"በተጠበቀ ሁኔታ ያስገቡ።"

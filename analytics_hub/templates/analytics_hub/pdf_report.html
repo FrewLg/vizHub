@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>VizHub GBD Health Report</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 20mm 15mm;
+            @bottom-right {
+                content: "Page " counter(page) " of " counter(pages);
+                font-size: 9pt;
+                color: #666;
+            }
+            @bottom-left {
+                content: "VizHub - Global Burden of Disease Surveillance";
+                font-size: 9pt;
+                color: #666;
+            }
+        }
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            color: #333;
+            font-size: 10pt;
+            line-height: 1.4;
+            margin: 0;
+            padding: 0;
+            background-color: #ffffff;
+        }
+        .header-banner {
+            background-color: #0a192f;
+            color: white;
+            padding: 20px;
+            border-left: 6px solid #007f5f;
+            margin-bottom: 20px;
+        }
+        .header-banner h1 {
+            margin: 0 0 5px 0;
+            font-size: 20pt;
+        }
+        .header-banner p {
+            margin: 0;
+            color: #a8b2d1;
+            font-size: 10pt;
+        }
+        .filter-box {
+            background-color: #f4f7f6;
+            border: 1px solid #d1d9e0;
+            padding: 12px 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+        .filter-box h4 {
+            margin: 0 0 8px 0;
+            color: #0a192f;
+            font-size: 11pt;
+        }
+        .filter-grid {
+            display: table;
+            width: 100%;
+        }
+        .filter-item {
+            display: table-cell;
+            font-size: 9pt;
+        }
+        .filter-item span {
+            font-weight: bold;
+            color: #007f5f;
+        }
+        table.data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        table.data-table th {
+            background-color: #0a192f;
+            color: white;
+            text-align: left;
+            padding: 8px 10px;
+            font-size: 9pt;
+            border: 1px solid #0a192f;
+        }
+        table.data-table td {
+            padding: 7px 10px;
+            border: 1px solid #e1e4e8;
+            font-size: 9pt;
+        }
+        table.data-table tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+        .summary-badge {
+            display: inline-block;
+            background-color: #007f5f;
+            color: white;
+            padding: 4px 8px;
+            font-size: 9pt;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header-banner">
+        <h1>VizHub GBD Analytics Report</h1>
+        <p>Generated public health surveillance data audit and record summary.</p>
+    </div>
+
+    <div class="filter-box">
+        <h4>Active Applied Parameters</h4>
+        <div class="filter-grid">
+            <div class="filter-item">Region: <span>{{ filter_params.region }}</span></div>
+            <div class="filter-item">Facility: <span>{{ filter_params.facility }}</span></div>
+            <div class="filter-item">Disease: <span>{{ filter_params.disease }}</span></div>
+            <div class="filter-item">Year: <span>{{ filter_params.year }}</span></div>
+            <div class="filter-item">Age Group: <span>{{ filter_params.age_group }}</span></div>
+        </div>
+    </div>
+
+    <p>Total Matching Records Found: <span class="summary-badge">{{ total_records }}</span></p>
+
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Region</th>
+                <th>Facility</th>
+                <th>Disease / Cause</th>
+                <th>Year</th>
+                <th>Age Group</th>
+                <th>Metric Value</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for rec in records %}
+            <tr>
+                <td>{{ rec.region }}</td>
+                <td>{{ rec.facility }}</td>
+                <td>{{ rec.disease }}</td>
+                <td>{{ rec.year }}</td>
+                <td>{{ rec.age_group }}</td>
+                <td><strong>{{ rec.metric_value }}</strong></td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" style="text-align: center; color: #777;">No records match the current filter criteria.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+</body>
+</html>
