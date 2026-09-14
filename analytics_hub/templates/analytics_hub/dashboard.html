@@ -12,150 +12,38 @@
             darkMode: 'class',
         }
     </script>
-<style type="text/stylesheet">
-
-.header .topbar {
-  background-color: var(--accent-color);
-  height: 40px;
-  padding: 0;
-  font-size: 14px;
-  transition: all 0.5s;
-}
-
-.header .topbar .contact-info i {
-  font-style: normal;
-  color: var(--contrast-color);
-}
-
-.header .topbar .contact-info i a,
-.header .topbar .contact-info i span {
-  padding-left: 5px;
-  color: var(--contrast-color);
-}
-
-@media (max-width: 575px) {
-
-  .header .topbar .contact-info i a,
-  .header .topbar .contact-info i span {
-    font-size: 13px;
-  }
-}
-
-.header .topbar .contact-info i a {
-  line-height: 0;
-  transition: 0.3s;
-}
-
-.header .topbar .contact-info i a:hover {
-  color: var(--contrast-color);
-  text-decoration: underline;
-}
-
-.header .topbar .social-links a {
-  color: color-mix(in srgb, var(--contrast-color), transparent 40%);
-  line-height: 0;
-  transition: 0.3s;
-  margin-left: 20px;
-}
-
-.header .topbar .social-links a:hover {
-  color: var(--contrast-color);
-}
-
-.header .branding {
-  min-height: 60px;
-  padding: 10px 0;
-}
-
-.header .logo {
-  line-height: 1;
-}
-
-.header .logo img {
-  max-height: 36px;
-  margin-right: 8px;
-}
-
-.header .logo h1 {
-  font-size: 30px;
-  margin: 0;
-  font-weight: 700;
-  color: var(--heading-color);
-}
-
-.header .cta-btn,
-.header .cta-btn:focus {
-  color: var(--contrast-color);
-  background: var(--accent-color);
-  font-size: 14px;
-  padding: 8px 25px;
-  margin: 0 0 0 30px;
-  border-radius: 50px;
-  transition: 0.3s;
-}
-
-.header .cta-btn:hover,
-.header .cta-btn:focus:hover {
-  color: var(--contrast-color);
-  background: color-mix(in srgb, var(--accent-color), transparent 15%);
-}
-
-@media (max-width: 1200px) {
-  .header .logo {
-    order: 1;
-  }
-
-  .header .cta-btn {
-    order: 2;
-    margin: 0 15px 0 0;
-    padding: 6px 15px;
-  }
-
-  .header .navmenu {
-    order: 3;
-  }
-}
-
-.scrolled .header {
-  box-shadow: 0px 0 18px rgba(0, 0, 0, 0.1);
-}
-
-.scrolled .header .topbar {
-  height: 0;
-  visibility: hidden;
-  overflow: hidden;
-}
-
-</style>    <!-- Chart.js -->
+    <style type="text/css">
+        /* Custom header styles fixed for proper standard parsing */
+        .topbar {
+            height: 40px;
+            padding: 0;
+            font-size: 14px;
+            transition: all 0.5s;
+        }
+        .scrolled .header {
+            box-shadow: 0px 0 18px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- html2canvas and jsPDF for PDF report generation -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
-<div class="topbar d-flex align-items-center" style="background-image: linear-gradient(45deg,#06439e,#21b24b);">
-			<div class="container d-flex justify-content-center justify-content-md-between">
-				<div class="contact-info d-flex align-items-center">
-				</div>
-				<div class="social-links d-none d-md-flex align-items-center">
-
-					<a href="https://www.linkedin.com/company/ethiopian-public-health-institute/posts/?feedView=all" class="linkedin">
-						<i class="bi bi-linkedin"></i>
-					</a>
-					<a href="https://twitter.com/EPHIEthiopia" class="twitter">
-						<i class="bi bi-twitter"></i>
-					</a>
-					<a href="https://ephi.gov.et/about-us/departments-units/scientific-and-ethical-review-office-sero/" class="instagram">
-						<i class="bi bi-globe"></i>
-					</a>
-					<a href="https://web.facebook.com/EPHIET/?_rdc=1&amp;_rdr" class="linkedin">
-						<i class="bi bi-facebook"></i>
-					</a>
-
-				</div>
-			</div>
-		</div>
-
 <body class="bg-gray-100 dark:bg-gray-900 dark:text-gray-100 flex flex-col h-screen overflow-hidden transition-colors duration-200">
+
+    <!-- Top Social/Brand Bar -->
+    <div class="topbar flex items-center bg-gradient-to-r from-[#06439e] to-[#21b24b] text-white px-6">
+        <div class="container mx-auto flex justify-between items-center">
+            <div class="contact-info flex items-center"></div>
+            <div class="social-links hidden md:flex items-center space-x-5">
+                <a href="https://www.linkedin.com/company/ethiopian-public-health-institute/posts/?feedView=all" class="hover:opacity-85 transition">LinkedIn</a>
+                <a href="https://twitter.com/EPHIEthiopia" class="hover:opacity-85 transition">Twitter</a>
+                <a href="https://ephi.gov.et/about-us/departments-units/scientific-and-ethical-review-office-sero/" class="hover:opacity-85 transition">EPHI SERO</a>
+                <a href="https://web.facebook.com/EPHIET/?_rdc=1&amp;_rdr" class="hover:opacity-85 transition">Facebook</a>
+            </div>
+        </div>
+    </div>
 
     <!-- Top Utility Bar -->
     <nav class="bg-white dark:bg-gray-800 border-b dark:border-gray-700 px-6 py-2 flex justify-between items-center z-30 shadow-sm text-xs">
@@ -172,7 +60,7 @@
         <!-- Right: Utility Controls (Language, Theme, Authentication) -->
         <div class="flex items-center space-x-4">
             
-            <!-- Language Toggle & Code Tracking -->
+            <!-- Language Toggle -->
             {% get_current_language as CURRENT_LANG %}
             <div class="flex items-center space-x-1 bg-gray-100 dark:bg-gray-700 p-1 rounded">
                 <form action="{% url 'set_language' %}" method="POST" class="inline flex items-center space-x-1">
@@ -188,7 +76,7 @@
                 <span id="theme-icon">🌙</span>
             </button>
 
-            <!-- Authentication Section (Google Auth & Sign Out) -->
+            <!-- Authentication Section -->
             <div class="flex items-center space-x-3 border-l pl-3 dark:border-gray-600">
                 {% if user.is_authenticated %}
                     <span class="font-semibold text-gray-700 dark:text-gray-200">{{ user.email|default:user.username }}</span>
@@ -214,104 +102,112 @@
         <!-- Faceted Search Sidebar -->
         <aside id="sidebar" class="w-96 bg-white dark:bg-gray-800 border-r dark:border-gray-700 flex flex-col transition-all duration-300 z-20 shadow-lg">
             <div class="p-4 border-b dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50">
-                <h2 class="font-bold text-sm text-gray-800 dark:text-gray-200 uppercase tracking-wider">{% trans "Advaced Search" %}</h2>
+                <h2 class="font-bold text-sm text-gray-800 dark:text-gray-200 uppercase tracking-wider">{% trans "Advanced Search" %}</h2>
                 <button onclick="toggleFacets()" class="text-gray-500 hover:text-black dark:hover:text-white font-bold">✕</button>
             </div>
+            
             <form method="GET" id="filter-form" class="p-4 overflow-y-auto flex-1 space-y-4 text-xs">
-                
-                <!-- Analytics Topic Selection -->
-                <div>
-                    <label class="font-semibold block mb-1 text-blue-700 dark:text-blue-400">{%trans "Analytics Topic" %} *</label>
-                    <div class="space-y-1 max-h-44 overflow-y-auto border dark:border-gray-700 p-2 rounded bg-gray-50 dark:bg-gray-900/40" id="topic-container">
-                        {% for key, val in topics %}
-                        <label class="flex items-start space-x-2 py-0.5 cursor-pointer">
-                            <input type="checkbox" name="topic" value="{{ key }}" onchange="handleTopicDependency()" class="mt-0.5 topic-checkbox" {% if key in selected_topics %}checked{% endif %}>
-                            <span class="text-gray-700 dark:text-gray-300">{{ val }}</span>
-                        </label>
-                        {% endfor %}
-                    </div>
-                </div>
 
-                <!-- Date Range -->
-                <div>
-                    <label class="font-semibold block mb-1 text-gray-700 dark:text-gray-300">{% trans "Date Range"%}</label>
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <span class="text-[10px] text-gray-500">{% trans "From"%}:</span>
-                            <input type="date" name="date_from" value="{{ date_from }}" class="w-full border dark:border-gray-700 bg-white dark:bg-gray-900 p-1 rounded">
-                        </div>
-                        <div>
-                            <span class="text-[10px] text-gray-500">{% trans "To" %}:</span>
-                            <input type="date" name="date_to" value="{{ date_to }}" class="w-full border dark:border-gray-700 bg-white dark:bg-gray-900 p-1 rounded">
-                        </div>
-                    </div>
-                </div>
+    <!-- Geography Level Selector -->
+    <div>
+        <label class="font-semibold block mb-1 text-gray-700 dark:text-gray-300">Geography Level</label>
+        <select name="geography" class="w-full border dark:border-gray-700 bg-white dark:bg-gray-900 p-1.5 rounded">
+            <option value="national" {% if selected_geography == 'national' %}selected{% endif %}>National</option>
+            <option value="regional" {% if selected_geography == 'regional' %}selected{% endif %}>Regional</option>
+            <option value="zone" {% if selected_geography == 'zone' %}selected{% endif %}>Zone</option>
+            <option value="woreda" {% if selected_geography == 'woreda' %}selected{% endif %}>Woreda</option>
+        </select>
+    </div>
 
-                <!-- Disease (Conditional Display) -->
-                <div id="disease-filter-group" class="hidden">
-                    <label class="font-semibold block mb-1 text-amber-600 dark:text-amber-400">Disease (If Applicable)</label>
-                    <div class="space-y-1 max-h-28 overflow-y-auto border border-amber-200 dark:border-amber-900/50 p-2 rounded bg-amber-50/50 dark:bg-amber-950/20">
-                        {% for disease in diseases %}
-                        <label class="flex items-center space-x-2 cursor-pointer">
-                            <input type="checkbox" name="disease" value="{{ disease }}" {% if disease in selected_diseases %}checked{% endif %}>
-                            <span>{{ disease }}</span>
-                        </label>
-                        {% endfor %}
-                    </div>
-                </div>
+    <!-- Topic Selector -->
+    <div>
+        <label class="font-semibold block mb-1 text-gray-700 dark:text-gray-300">Topic</label>
+        <select name="topic" class="w-full border dark:border-gray-700 bg-white dark:bg-gray-900 p-1.5 rounded">
+            <option value="">-- All Topics --</option>
+            {% for topic in topics %}
+            <option value="{{ topic.id }}" {% if selected_topic|slugify == topic.id|slugify %}selected{% endif %}>{{ topic.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
 
-                <!-- Age Group -->
-                <div id="age-filter-group">
-                    <label class="font-semibold block mb-1 text-gray-700 dark:text-gray-300">{% trans "Age Group" %}</label>
-                    <div class="space-y-1 max-h-24 overflow-y-auto border dark:border-gray-700 p-2 rounded bg-white dark:bg-gray-900/40">
-                        {% for age in age_groups %}
-                        <label class="flex items-center space-x-2 cursor-pointer">
-                            <input type="checkbox" name="age_group" value="{{ age }}" {% if age in selected_ages %}checked{% endif %}>
-                            <span>{{ age }}</span>
-                        </label>
-                        {% endfor %}
-                    </div>
-                </div>
+    <!-- Indicator Selector -->
+    <div>
+        <label class="font-semibold block mb-1 text-gray-700 dark:text-gray-300">Indicator</label>
+        <select name="indicator" class="w-full border dark:border-gray-700 bg-white dark:bg-gray-900 p-1.5 rounded">
+            <option value="">-- All Indicators --</option>
+            {% for ind in indicators %}
+            <option value="{{ ind.id }}" {% if selected_indicator|slugify == ind.id|slugify %}selected{% endif %}>{{ ind.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
 
-                <!-- Facility -->
-                <div>
-                    <label class="font-semibold block mb-1 text-gray-700 dark:text-gray-300">{% trans "Facility" %}</label>
-                    <div class="space-y-1 max-h-24 overflow-y-auto border dark:border-gray-700 p-2 rounded bg-white dark:bg-gray-900/40">
-                        {% for facility in facilities %}
-                        <label class="flex items-center space-x-2 cursor-pointer">
-                            <input type="checkbox" name="facility" value="{{ facility }}" {% if facility in selected_facilities %}checked{% endif %}>
-                            <span>{{ facility }}</span>
-                        </label>
-                        {% endfor %}
-                    </div>
-                </div>
+    <!-- Year Selector -->
+    <div>
+        <label class="font-semibold block mb-1 text-gray-700 dark:text-gray-300">Year</label>
+        <select name="year" class="w-full border dark:border-gray-700 bg-white dark:bg-gray-900 p-1.5 rounded">
+            <option value="">-- All Years --</option>
+            {% for y in years %}
+            <option value="{{ y }}" {% if selected_year|slugify == y|slugify %}selected{% endif %}>{{ y }}</option>
+            {% endfor %}
+        </select>
+    </div>
 
-                <!-- Location -->
-                <div>
-                    <label class="font-semibold block mb-1 text-gray-700 dark:text-gray-300">{% trans "Location" %}</label>
-                    <div class="space-y-1 max-h-24 overflow-y-auto border dark:border-gray-700 p-2 rounded bg-white dark:bg-gray-900/40">
-                        {% for loc in locations %}
-                        <label class="flex items-center space-x-2 cursor-pointer">
-                            <input type="checkbox" name="location" value="{{ loc }}" {% if loc in selected_locations %}checked{% endif %}>
-                            <span>{{ loc }}</span>
-                        </label>
-                        {% endfor %}
-                    </div>
-                </div>
+    <!-- Location Selector -->
+    <div>
+        <label class="font-semibold block mb-1 text-gray-700 dark:text-gray-300">Location</label>
+        <select name="location" class="w-full border dark:border-gray-700 bg-white dark:bg-gray-900 p-1.5 rounded">
+            <option value="">-- All Locations --</option>
+            {% for loc in locations %}
+            <option value="{{ loc.id }}" {% if selected_location|slugify == loc.id|slugify %}selected{% endif %}>{{ loc.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
 
-                <!-- Buttons: Apply Filter & Reset -->
-                <div class="grid grid-cols-2 gap-2 pt-2">
-                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded font-semibold transition shadow">{% trans "Apply Filters" %}</button>
-                    <button type="button" onclick="resetFilters()" class="w-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 py-2 rounded font-semibold transition">{% trans "Reset" %}</button>
-                </div>
-            </form>
+    <!-- Cause Selector (Optional/Conditional) -->
+    <div>
+        <label class="font-semibold block mb-1 text-gray-700 dark:text-gray-300">Cause of Morbidity/Mortality</label>
+        <select name="cause" class="w-full border dark:border-gray-700 bg-white dark:bg-gray-900 p-1.5 rounded">
+            <option value="">-- All Causes --</option>
+            {% for cause in causes %}
+            <option value="{{ cause.id }}" {% if selected_cause|slugify == cause.id|slugify %}selected{% endif %}>{{ cause.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <!-- Sex Selector -->
+    <div>
+        <label class="font-semibold block mb-1 text-gray-700 dark:text-gray-300">Sex</label>
+        <select name="sex" class="w-full border dark:border-gray-700 bg-white dark:bg-gray-900 p-1.5 rounded">
+            <option value="">-- Both / All --</option>
+            {% for s in sexes %}
+            <option value="{{ s.id }}" {% if selected_sex|slugify == s.id|slugify %}selected{% endif %}>{{ s.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <!-- Facility Category Selector -->
+    <div>
+        <label class="font-semibold block mb-1 text-gray-700 dark:text-gray-300">Facility Category</label>
+        <select name="facility_category" class="w-full border dark:border-gray-700 bg-white dark:bg-gray-900 p-1.5 rounded">
+            <option value="">-- All Categories --</option>
+            {% for cat in facility_categories %}
+            <option value="{{ cat.id }}" {% if selected_facility_category|slugify == cat.id|slugify %}selected{% endif %}>{{ cat.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <!-- Actions: Apply & Reset -->
+    <div class="grid grid-cols-2 gap-2 pt-2">
+        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded font-semibold transition shadow">Apply Filters</button>
+        <a href="{% url 'dashboard' %}" class="w-full text-center bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 py-2 rounded font-semibold transition block">Reset</a>
+    </div>
+</form>
         </aside>
 
         <!-- Main Workspace -->
         <main class="flex-1 flex flex-col h-full overflow-hidden">
             
-<header class="bg-white dark:bg-gray-800 border-b dark:border-gray-700 px-6 py-3 flex justify-between items-center shadow-xs">
-
+            <header class="bg-white dark:bg-gray-800 border-b dark:border-gray-700 px-6 py-3 flex justify-between items-center shadow-xs">
                 <button onclick="toggleFacets()" class="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 border dark:border-gray-600 px-3 py-1.5 rounded text-xs font-medium transition">=</button>
                 
                 <!-- Upload Excel Button Action -->
@@ -341,29 +237,50 @@
                 </div>
 
                 <!-- Interactive Visualization Grid -->
-                <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                <!-- <div class="grid grid-cols-1 xl:grid-cols-2 gap-6"> -->
                     <!-- Chart 1 -->
-                    <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border dark:border-gray-700 flex flex-col">
+                    <!-- <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border dark:border-gray-700 flex flex-col">
                         <div class="flex justify-between items-center mb-3 border-b dark:border-gray-700 pb-2">
                             <h3 class="font-bold text-gray-700 dark:text-gray-200 text-xs">Analytics Breakdown View</h3>
-                            <button onclick="downloadChart('chartCanvas1')" class="text-[10px] bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 border dark:border-gray-600 px-2 py-1 rounded">{% trans "Download chart"%}</button>
+                            <button onclick="downloadChart('chartCanvas1')" class="text-[10px] bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 border dark:border-gray-600 px-2 py-1 rounded">{% trans "Download chart" %}</button>
                         </div>
                         <div class="relative flex-1 min-h-[260px]">
                             <canvas id="chartCanvas1"></canvas>
                         </div>
-                    </div>
+                    </div> -->
 
                     <!-- Chart 2 (Timeline) -->
-                    <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border dark:border-gray-700 flex flex-col">
-                        <div class="flex justify-between items-center mb-3 border-b dark:border-gray-700 pb-2">
-                            <h3 class="font-bold text-gray-700 dark:text-gray-200 text-xs">Temporal Trend / Timeline View</h3>
-                            <button onclick="downloadChart('chartCanvas2')" class="text-[10px] bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 border dark:border-gray-600 px-2 py-1 rounded">{% trans "Download chart" %}</button>
-                        </div>
-                        <div class="relative flex-1 min-h-[260px]">
-                            <canvas id="chartCanvas2"></canvas>
-                        </div>
-                    </div>
-                </div>
+                    <!-- Interactive Visualization Grid -->
+
+                    <!-- Analytics Visualization Workspace -->
+<div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
+    <!-- Trend Line Chart -->
+    <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border dark:border-gray-700 flex flex-col">
+        <div class="flex justify-between items-center mb-3 border-b dark:border-gray-700 pb-2">
+            <h3 class="font-bold text-gray-700 dark:text-gray-200 text-xs">Temporal Trend & Uncertainty Bounds</h3>
+            <span class="text-[10px] text-gray-400">Timeline Analysis</span>
+        </div>
+        <div class="relative flex-1 min-h-[280px]">
+            <canvas id="trendChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Rankings / Comparison Bar Chart -->
+    <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border dark:border-gray-700 flex flex-col">
+        <div class="flex justify-between items-center mb-3 border-b dark:border-gray-700 pb-2">
+            <h3 class="font-bold text-gray-700 dark:text-gray-200 text-xs">Top Regional Performance</h3>
+            <span class="text-[10px] text-gray-400">Location Breakdown</span>
+        </div>
+        <div class="relative flex-1 min-h-[280px]">
+            <canvas id="rankingChart"></canvas>
+        </div>
+    </div>
+</div>
+
+
+
+
+                <!-- </div> -->
 
                 <!-- Filtered Data Table Section -->
                 <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border dark:border-gray-700">
@@ -486,34 +403,9 @@
         document.addEventListener('DOMContentLoaded', handleTopicDependency);
 
         // Chart.js Setup
-        const ctx1 = document.getElementById('chartCanvas1').getContext('2d');
-        new Chart(ctx1, {
-            type: 'bar',
-            data: {
-                labels: ['Addis Ababa', 'Oromia', 'Amhara', 'Tigray', 'SNNPR'],
-                datasets: [{
-                    label: 'Indicator Value',
-                    data: [120, 190, 150, 80, 110],
-                    backgroundColor: '#3b82f6'
-                }]
-            },
-            options: { responsive: true, maintainAspectRatio: false }
-        });
+         
 
-        const ctx2 = document.getElementById('chartCanvas2').getContext('2d');
-        new Chart(ctx2, {
-            type: 'line',
-            data: {
-                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-                datasets: [{
-                    label: 'Timeline Trend',
-                    data: [65, 59, 80, 81, 56, 55],
-                    borderColor: '#10b981',
-                    tension: 0.1
-                }]
-            },
-            options: { responsive: true, maintainAspectRatio: false }
-        });
+     
 
         function downloadChart(canvasId) {
             const canvas = document.getElementById(canvasId);
@@ -569,5 +461,82 @@
             pdf.save('ethiopia-analytics-report.pdf');
         }
     </script>
+
+    
+<!-- Chart.js Initialization Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // 1. Parse Context Data
+    const chartJson = JSON.parse('{{ chart_data|safe }}');
+    const mapJson = JSON.parse('{{ map_data|safe }}');
+
+    // 2. Render Timeline Trend Chart
+    const ctxTrend = document.getElementById('trendChart').getContext('2d');
+    new Chart(ctxTrend, {
+        type: 'line',
+        data: {
+            labels: chartJson.labels,
+            datasets: [
+                {
+                    label: 'Estimated Value',
+                    data: chartJson.values,
+                    borderColor: '#059669',
+                    backgroundColor: 'rgba(5, 150, 105, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.2
+                },
+                {
+                    label: 'Upper Bound',
+                    data: chartJson.upper,
+                    borderColor: 'rgba(156, 163, 175, 0.4)',
+                    borderDash: [4, 4],
+                    pointRadius: 0,
+                    fill: false
+                },
+                {
+                    label: 'Lower Bound',
+                    data: chartJson.lower,
+                    borderColor: 'rgba(156, 163, 175, 0.4)',
+                    borderDash: [4, 4],
+                    pointRadius: 0,
+                    fill: false
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { beginAtZero: true, grid: { color: 'rgba(200, 200, 200, 0.1)' } },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+
+    // 3. Render Location Ranking Bar Chart
+    const topLocations = mapJson.slice(0, 10); // Top 10 locations
+    const ctxRanking = document.getElementById('rankingChart').getContext('2d');
+    new Chart(ctxRanking, {
+        type: 'bar',
+        data: {
+            labels: topLocations.map(item => item.name),
+            datasets: [{
+                label: 'Average Value',
+                data: topLocations.map(item => item.value),
+                backgroundColor: '#3b82f6',
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { beginAtZero: true, grid: { color: 'rgba(200, 200, 200, 0.1)' } },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+</script>
 </body>
 </html>

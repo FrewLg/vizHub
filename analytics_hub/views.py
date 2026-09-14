@@ -13,14 +13,436 @@ from django.utils.translation import get_language
 
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from .models import GBDRecord
+# from .models import GBDRecord
 
+# views.py
 
-import pandas as pd
-from datetime import datetime
+import json
+
+from django.contrib import messages
+from django.db.models import Avg, Sum, Count, Max
+from django.shortcuts import render, redirect
+
+from .models import (
+    Topic,
+    Indicator,
+    Location,
+    Observation,
+    Cause,
+    Sex,
+    FacilityCategory,
+)
+
 from .forms import ExcelUploadForm
 
 
+def dashboard_view(request):
+
+    # ==========================================
+    # Excel Upload
+    # ==========================================
+
+    if (
+        request.method == "POST"
+        and "excel_file" in request.FILES
+    ):
+
+        form = ExcelUploadForm(
+            request.POST,
+            request.FILES
+        )
+
+        if form.is_valid():
+
+            try:
+
+                excel_file = request.FILES["excel_file"]
+
+                process_excel_upload(
+                    excel_file
+                )
+
+                messages.success(
+                    request,
+                    "Data uploaded successfully."
+                )
+
+                return redirect("dashboard")
+
+            except Exception as e:
+
+                messages.error(
+                    request,
+                    str(e)
+                )
+
+        else:
+
+            messages.error(
+                request,
+                "Invalid upload."
+            )
+
+    # ==========================================
+    # Filter Values
+    # ==========================================
+
+    topic_id = request.GET.get(
+        "topic"
+    )
+
+    indicator_id = request.GET.get(
+        "indicator"
+    )
+
+    year = request.GET.get(
+        "year"
+    )
+
+    geography = request.GET.get(
+        "geography",
+        "national"
+    )
+
+    location_id = request.GET.get(
+        "location"
+    )
+
+    cause_id = request.GET.get(
+        "cause"
+    )
+
+    sex_id = request.GET.get(
+        "sex"
+    )
+
+    facility_category_id = request.GET.get(
+        "facility_category"
+    )
+
+    # ==========================================
+    # Base Query
+    # ==========================================
+
+    queryset = (
+        Observation.objects
+        .select_related(
+            "indicator",
+            "location",
+            "sex",
+            "cause",
+            "facility_category"
+        )
+    )
+
+    # ==========================================
+    # Apply Filters
+    # ==========================================
+
+    if topic_id:
+
+        queryset = queryset.filter(
+            indicator__topic_id=topic_id
+        )
+
+    if indicator_id:
+
+        queryset = queryset.filter(
+            indicator_id=indicator_id
+        )
+
+    if year:
+
+        queryset = queryset.filter(
+            year=year
+        )
+
+    if location_id:
+
+        queryset = queryset.filter(
+            location_id=location_id
+        )
+
+    if cause_id:
+
+        queryset = queryset.filter(
+            cause_id=cause_id
+        )
+
+    if sex_id:
+
+        queryset = queryset.filter(
+            sex_id=sex_id
+        )
+
+    if facility_category_id:
+
+        queryset = queryset.filter(
+            facility_category_id=facility_category_id
+        )
+
+    # ==========================================
+    # National vs Regional
+    # ==========================================
+
+    if geography == "national":
+
+        queryset = queryset.filter(
+            location__level="country"
+        )
+
+    elif geography == "regional":
+
+        queryset = queryset.filter(
+            location__level="region"
+        )
+
+    elif geography == "zone":
+
+        queryset = queryset.filter(
+            location__level="zone"
+        )
+
+    elif geography == "woreda":
+
+        queryset = queryset.filter(
+            location__level="woreda"
+        )
+
+    # ==========================================
+    # KPI Cards
+    # ==========================================
+
+    metrics = queryset.aggregate(
+
+        total_value=Sum("value"),
+
+        average_value=Avg("value"),
+
+        total_records=Count("id"),
+
+        latest_year=Max("year"),
+    )
+
+    # ==========================================
+    # Chart Data
+    # ==========================================
+
+    chart_queryset = (
+        queryset
+        .order_by("year")
+    )
+
+    chart_labels = []
+    chart_values = []
+    chart_lower = []
+    chart_upper = []
+
+    for row in chart_queryset:
+
+        chart_labels.append(
+            row.year
+        )
+
+        chart_values.append(
+            float(row.value)
+        )
+
+        chart_lower.append(
+            float(row.lower_bound)
+            if row.lower_bound
+            else None
+        )
+
+        chart_upper.append(
+            float(row.upper_bound)
+            if row.upper_bound
+            else None
+        )
+
+    chart_data = {
+        "labels": chart_labels,
+        "values": chart_values,
+        "lower": chart_lower,
+        "upper": chart_upper,
+    }
+
+    # ==========================================
+    # Map Dataset
+    # ==========================================
+
+    map_queryset = (
+        queryset
+        .values(
+            "location__id",
+            "location__name"
+        )
+        .annotate(
+            value=Avg("value")
+        )
+    )
+
+    map_data = []
+
+    for item in map_queryset:
+
+        map_data.append({
+
+            "id":
+                item["location__id"],
+
+            "name":
+                item["location__name"],
+
+            "value":
+                float(item["value"]),
+        })
+
+    # ==========================================
+    # Rankings
+    # ==========================================
+
+    rankings = (
+        queryset
+        .order_by("-value")
+        [:20]
+    )
+
+    # ==========================================
+    # Latest Records
+    # ==========================================
+
+    table_records = (
+        queryset
+        .order_by("-year")
+        [:100]
+    )
+
+    # ==========================================
+    # Filter Lists
+    # ==========================================
+
+    topics = Topic.objects.all()
+
+    indicators = Indicator.objects.all()
+
+    locations = Location.objects.all()
+
+    sexes = Sex.objects.all()
+
+    causes = Cause.objects.all()
+
+    facility_categories = (
+        FacilityCategory.objects.all()
+    )
+
+    years = (
+        Observation.objects
+        .values_list(
+            "year",
+            flat=True
+        )
+        .distinct()
+        .order_by("-year")
+    )
+
+    # ==========================================
+    # GeoJSON URL
+    # ==========================================
+
+    geojson_url = "/api/geojson/"
+
+    # ==========================================
+    # Context
+    # ==========================================
+
+    context = {
+
+        "upload_form":
+            ExcelUploadForm(),
+
+        "topics":
+            topics,
+
+        "indicators":
+            indicators,
+
+        "locations":
+            locations,
+
+        "sexes":
+            sexes,
+
+        "causes":
+            causes,
+
+        "facility_categories":
+            facility_categories,
+
+        "years":
+            years,
+
+        "records":
+            table_records,
+
+        "rankings":
+            rankings,
+
+        "chart_data":
+            json.dumps(chart_data),
+
+        "map_data":
+            json.dumps(map_data),
+
+        "geojson_url":
+            geojson_url,
+
+        "selected_topic":
+            topic_id,
+
+        "selected_indicator":
+            indicator_id,
+
+        "selected_year":
+            year,
+
+        "selected_location":
+            location_id,
+
+        "selected_cause":
+            cause_id,
+
+        "selected_sex":
+            sex_id,
+
+        "selected_facility_category":
+            facility_category_id,
+
+        "selected_geography":
+            geography,
+
+        "total_value":
+            metrics["total_value"]
+            or 0,
+
+        "average_value":
+            metrics["average_value"]
+            or 0,
+
+        "total_records":
+            metrics["total_records"]
+            or 0,
+
+        "latest_year":
+            metrics["latest_year"]
+            or "-",
+    }
+
+    return render(
+        request,
+        "analytics_hub/dashboard.html",
+        context
+    )
 @csrf_exempt
 def ai_chatbot_api(request):
     if request.method == 'POST':
@@ -61,102 +483,114 @@ def custom_signup_view(request):
 
 ########
 
-# analytics_hub/views.py
-# analytics_hub/views.py
 
-def dashboard_view(request):
-    # Handle Excel Upload POST request
-    if request.method == 'POST' and 'excel_file' in request.FILES:
-        form = ExcelUploadForm(request.POST, request.FILES)
-        if form.is_valid():
-            excel_file = request.FILES['excel_file']
-            try:
-                df = pd.read_excel(excel_file)
-                records_to_create = []
-                for _, row in df.iterrows():
-                    rec_date = row.get('date')
-                    if pd.isna(rec_date):
-                        rec_date = datetime.now().date()
-                    else:
-                        rec_date = pd.to_datetime(rec_date).date()
 
-                    records_to_create.append(
-                        GBDRecord(
-                            topic=str(row.get('topic', 'covid_19')),
-                            date=rec_date,
-                            disease=str(row.get('disease', '')) if pd.notna(row.get('disease')) else None,
-                            age_group=str(row.get('age_group', '')) if pd.notna(row.get('age_group')) else None,
-                            facility=str(row.get('facility', '')) if pd.notna(row.get('facility')) else None,
-                            location=str(row.get('location', 'Addis Ababa')),
-                            metric_value=float(row.get('metric_value', 0.0)) if pd.notna(row.get('metric_value')) else 0.0
-                        )
-                    )
-                GBDRecord.objects.bulk_create(records_to_create)
-                messages.success(request, f"Successfully imported {len(records_to_create)} records from Excel!")
-                return redirect('dashboard')
-            except Exception as e:
-                messages.error(request, f"Error processing Excel file: {e}")
-        else:
-            messages.error(request, "Invalid file format uploaded.")
+# def dashboard_view(request):
+#     # Handle Excel Upload POST request
+#     if request.method == 'POST' and 'excel_file' in request.FILES:
+#         form = ExcelUploadForm(request.POST, request.FILES)
+#         if form.is_valid():
+#             excel_file = request.FILES['excel_file']
+#             try:
+#                 df = pd.read_excel(excel_file)
+#                 records_to_create = []
+#                 for _, row in df.iterrows():
+#                     rec_date = row.get('date')
+#                     if pd.isna(rec_date):
+#                         rec_date = datetime.now().date()
+#                     else:
+#                         rec_date = pd.to_datetime(rec_date).date()
 
-    # Fetch distinct options for dynamic filtering lists
-    topics = GBDRecord.TOPIC_CHOICES
-    diseases = GBDRecord.objects.exclude(disease__isnull=True).exclude(disease='').values_list('disease', flat=True).distinct()
-    age_groups = GBDRecord.objects.exclude(age_group__isnull=True).exclude(age_group='').values_list('age_group', flat=True).distinct()
-    facilities = GBDRecord.objects.exclude(facility__isnull=True).exclude(facility='').values_list('facility', flat=True).distinct()
-    locations = GBDRecord.objects.exclude(location__isnull=True).exclude(location='').values_list('location', flat=True).distinct()
+#                     records_to_create.append(
+#                         GBDRecord(
+#                             topic=str(row.get('topic', 'covid_19')),
+#                             date=rec_date,
+#                             disease=str(row.get('disease', '')) if pd.notna(row.get('disease')) else None,
+#                             age_group=str(row.get('age_group', '')) if pd.notna(row.get('age_group')) else None,
+#                             facility=str(row.get('facility', '')) if pd.notna(row.get('facility')) else None,
+#                             location=str(row.get('location', 'Addis Ababa')),
+#                             metric_value=float(row.get('metric_value', 0.0)) if pd.notna(row.get('metric_value')) else 0.0
+#                         )
+#                     )
+#                 GBDRecord.objects.bulk_create(records_to_create)
+#                 messages.success(request, f"Successfully imported {len(records_to_create)} records from Excel!")
+#                 return redirect('dashboard')
+#             except Exception as e:
+#                 messages.error(request, f"Error processing Excel file: {e}")
+#         else:
+#             messages.error(request, "Invalid file format uploaded.")
 
-    # Capture multi-select checkboxes and parameters from GET query string
-    selected_topics = request.GET.getlist('topic')
-    selected_diseases = request.GET.getlist('disease')
-    selected_ages = request.GET.getlist('age_group')
-    selected_facilities = request.GET.getlist('facility')
-    selected_locations = request.GET.getlist('location')
-    date_from = request.GET.get('date_from', '')
-    date_to = request.GET.get('date_to', '')
+#     # Fetch distinct options for dynamic filtering lists
+#     topics = GBDRecord.TOPIC_CHOICES
+#     diseases = GBDRecord.objects.exclude(disease__isnull=True).exclude(disease='').values_list('disease', flat=True).distinct()
+#     age_groups = GBDRecord.objects.exclude(age_group__isnull=True).exclude(age_group='').values_list('age_group', flat=True).distinct()
+#     facilities = GBDRecord.objects.exclude(facility__isnull=True).exclude(facility='').values_list('facility', flat=True).distinct()
+#     locations = GBDRecord.objects.exclude(location__isnull=True).exclude(location='').values_list('location', flat=True).distinct()
 
-    # Base Queryset
-    queryset = GBDRecord.objects.all()
+#     # Capture multi-select checkboxes and parameters from GET query string
+#     selected_topics = request.GET.getlist('topic')
+#     selected_diseases = request.GET.getlist('disease')
+#     selected_ages = request.GET.getlist('age_group')
+#     selected_facilities = request.GET.getlist('facility')
+#     selected_locations = request.GET.getlist('location')
+#     date_from = request.GET.get('date_from', '')
+#     date_to = request.GET.get('date_to', '')
 
-    # Apply dynamic filtering matching checkboxes and criteria
-    if selected_topics:
-        queryset = queryset.filter(topic__in=selected_topics)
-    if selected_diseases:
-        queryset = queryset.filter(disease__in=selected_diseases)
-    if selected_ages:
-        queryset = queryset.filter(age_group__in=selected_ages)
-    if selected_facilities:
-        queryset = queryset.filter(facility__in=selected_facilities)
-    if selected_locations:
-        queryset = queryset.filter(location__in=selected_locations)
-    if date_from:
-        queryset = queryset.filter(date__gte=date_from)
-    if date_to:
-        queryset = queryset.filter(date__lte=date_to)
+#     # Base Queryset
+#     queryset = GBDRecord.objects.all()
 
-    # Compute figures summary
-    total_metrics = queryset.aggregate(total=Sum('metric_value'))['total'] or 0.0
+#     # Apply dynamic filtering matching checkboxes and criteria
+#     if selected_topics:
+#         queryset = queryset.filter(topic__in=selected_topics)
+#     if selected_diseases:
+#         queryset = queryset.filter(disease__in=selected_diseases)
+#     if selected_ages:
+#         queryset = queryset.filter(age_group__in=selected_ages)
+#     if selected_facilities:
+#         queryset = queryset.filter(facility__in=selected_facilities)
+#     if selected_locations:
+#         queryset = queryset.filter(location__in=selected_locations)
+#     if date_from:
+#         queryset = queryset.filter(date__gte=date_from)
+#     if date_to:
+#         queryset = queryset.filter(date__lte=date_to)
 
-    context = {
-        'records': queryset[:100],
-        'total_metrics': total_metrics,
-        'topics': topics,
-        'diseases': diseases,
-        'age_groups': age_groups,
-        'facilities': facilities,
-        'locations': locations,
-        'selected_topics': selected_topics,
-        'selected_diseases': selected_diseases,
-        'selected_ages': selected_ages,
-        'selected_facilities': selected_facilities,
-        'selected_locations': selected_locations,
-        'date_from': date_from,
-        'date_to': date_to,
-        'upload_form': ExcelUploadForm(),
-    }
-    return render(request, 'analytics_hub/dashboard.html', context)
+#     # Compute figures summary
+#     total_metrics = queryset.aggregate(total=Sum('metric_value'))['total'] or 0.0
 
-#########
+#     context = {
+#         'records': queryset[:100],
+#         'total_metrics': total_metrics,
+#         'topics': topics,
+#         'diseases': diseases,
+#         'age_groups': age_groups,
+#         'facilities': facilities,
+#         'locations': locations,
+#         'selected_topics': selected_topics,
+#         'selected_diseases': selected_diseases,
+#         'selected_ages': selected_ages,
+#         'selected_facilities': selected_facilities,
+#         'selected_locations': selected_locations,
+#         'date_from': date_from,
+#         'date_to': date_to,
+#         'upload_form': ExcelUploadForm(),
+#     }
+#     return render(request, 'analytics_hub/dashboard.html', context)
+
+# #########
+# def upload_view(request):
+#     if request.method == 'POST' and request.FILES.get('excel_file'):
+#         try:
+#             process_excel_upload(request.FILES['excel_file'])
+#             messages.success(request, "Data successfully appended to the GBD database!")
+#         except Exception as e:
+#             messages.error(request, f"Error processing file: {e}")
+#     return redirect('dashboard')
+
+from django.shortcuts import redirect
+from django.contrib import messages
+# import process_excel_upload from wherever you define it (e.g., utils.py or views.py)
+
 def upload_view(request):
     if request.method == 'POST' and request.FILES.get('excel_file'):
         try:
@@ -165,7 +599,7 @@ def upload_view(request):
         except Exception as e:
             messages.error(request, f"Error processing file: {e}")
     return redirect('dashboard')
-#########
+# #########
 
 def download_pdf_report(request):
     selected_regions = request.GET.getlist('regions')

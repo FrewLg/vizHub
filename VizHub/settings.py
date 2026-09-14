@@ -19,9 +19,7 @@ import environ
 # Call it like this:
 load_dotenv()
 
-env = environ.Env(
-    DEBUG=(bool, False)
-)
+ 
 
 # Add this block inside settings.py
 SOCIALACCOUNT_PROVIDERS = {
@@ -37,10 +35,9 @@ SOCIALACCOUNT_PROVIDERS = {
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
+env = environ.Env()
 
+environ.Env.read_env(BASE_DIR / ".env")
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = env("SECRET_KEY")
 
@@ -64,8 +61,7 @@ INSTALLED_APPS = [
 'allauth',
     'allauth.account',
     'allauth.socialaccount',
-    
-    # Add providers you want to support (e.g., Google)
+     
     'allauth.socialaccount.providers.google',
 'analytics_hub',  # Your app
 ]
@@ -162,19 +158,19 @@ AUTH_PASSWORD_VALIDATORS = [
 
 TIME_ZONE = "UTC"
 
-
 USE_TZ = True
 
 LANGUAGE_CODE = 'en'
 LANGUAGES = [
     ('en', 'English'),
     ('fr', 'Français'),
- ('am', 'Amharic'),
+    # ('am', 'Français'),
+ 
     ('es', 'Español'),
 ]
 
 USE_I18N = True
-USE_L10N = True
+# Note: USE_L10N was deprecated/removed in Django 5.x, you can safely remove it
 
 LOCALE_PATHS = [
     os.path.join(BASE_DIR, 'locale'),
