@@ -16,13 +16,11 @@ from django.views.decorators.csrf import csrf_exempt
 # from .models import GBDRecord
 
 # views.py
-
-import json
+ 
 
 from django.contrib import messages
 from django.db.models import Avg, Sum, Count, Max
-from django.shortcuts import render, redirect
-
+ 
 from .models import (
     Topic,
     Indicator,
@@ -30,235 +28,101 @@ from .models import (
     Observation,
     Cause,
     Sex,
+    AgeGroup,
     FacilityCategory,
 )
 
-from .forms import ExcelUploadForm
-
+ 
+ 
+from django.views.decorators.csrf import csrf_exempt
+from .models import Observation, Topic, Indicator, Location, Sex, Cause, FacilityCategory
+from .utils import process_excel_upload
+from .forms import ExcelUploadForm # Adjust import if needed
 
 def dashboard_view(request):
-
-    # ==========================================
-    # Excel Upload
-    # ==========================================
-
-    if (
-        request.method == "POST"
-        and "excel_file" in request.FILES
-    ):
-
-        form = ExcelUploadForm(
-            request.POST,
-            request.FILES
-        )
-
+    if request.method == "POST" and "excel_file" in request.FILES:
+        form = ExcelUploadForm(request.POST, request.FILES)
         if form.is_valid():
-
             try:
-
-                excel_file = request.FILES["excel_file"]
-
-                process_excel_upload(
-                    excel_file
-                )
-
-                messages.success(
-                    request,
-                    "Data uploaded successfully."
-                )
-
+                process_excel_upload(request.FILES["excel_file"])
+                messages.success(request, "Data uploaded successfully.")
                 return redirect("dashboard")
-
             except Exception as e:
-
-                messages.error(
-                    request,
-                    str(e)
-                )
-
+                messages.error(request, str(e))
         else:
+            messages.error(request, "Invalid upload.")
 
-            messages.error(
-                request,
-                "Invalid upload."
-            )
+    # 1. Start with the base queryset
+    queryset = Observation.objects.select_related(
+        'indicator', 'location', 'cause', 'sex', 'facility_category'
+    ).all()
 
-    # ==========================================
-    # Filter Values
-    # ==========================================
-
-    topic_id = request.GET.get(
-        "topic"
-    )
-
-    indicator_id = request.GET.get(
-        "indicator"
-    )
-
-    year = request.GET.get(
-        "year"
-    )
-
-    geography = request.GET.get(
-        "geography",
-        "national"
-    )
-
-    location_id = request.GET.get(
-        "location"
-    )
-
-    cause_id = request.GET.get(
-        "cause"
-    )
-
-    sex_id = request.GET.get(
-        "sex"
-    )
-
-    facility_category_id = request.GET.get(
-        "facility_category"
-    )
-
-    # ==========================================
-    # Base Query
-    # ==========================================
-
-    queryset = (
-        Observation.objects
-        .select_related(
-            "indicator",
-            "location",
-            "sex",
-            "cause",
-            "facility_category"
-        )
-    )
-
-    # ==========================================
-    # Apply Filters
-    # ==========================================
-
-    if topic_id:
-
-        queryset = queryset.filter(
-            indicator__topic_id=topic_id
-        )
-
-    if indicator_id:
-
-        queryset = queryset.filter(
-            indicator_id=indicator_id
-        )
-
-    if year:
-
-        queryset = queryset.filter(
-            year=year
-        )
-
-    if location_id:
-
-        queryset = queryset.filter(
-            location_id=location_id
-        )
-
-    if cause_id:
-
-        queryset = queryset.filter(
-            cause_id=cause_id
-        )
-
-    if sex_id:
-
-        queryset = queryset.filter(
-            sex_id=sex_id
-        )
-
-    if facility_category_id:
-
-        queryset = queryset.filter(
-            facility_category_id=facility_category_id
-        )
-
-    # ==========================================
-    # National vs Regional
-    # ==========================================
-
+    # 2. Retrieve and clean request parameters (treat empty strings as None)
+    geography = request.GET.get("geography", "regional")
+    topic_id = request.GET.get("topic") or None
+    indicator_id = request.GET.get("indicator") or None
+    age_group_id = request.GET.get("age_group") or None
+    year = request.GET.get("year") or None
+    location_id = request.GET.get("location") or None
+    cause_id = request.GET.get("cause") or None
+    sex_id = request.GET.get("sex") or None
+    facility_category_id = request.GET.get("facility_category") or None
+    if age_group_id:
+        queryset = queryset.filter(age_group_id=age_group_id)
+    # 3. Apply geography level filter safely
     if geography == "national":
-
-        queryset = queryset.filter(
-            location__level="country"
-        )
-
+        queryset = queryset.filter(location__level__iexact="country")
     elif geography == "regional":
-
-        queryset = queryset.filter(
-            location__level="region"
-        )
-
+        queryset = queryset.filter(location__level__iexact="regional") | queryset.filter(location__level__iexact="region")
     elif geography == "zone":
-
-        queryset = queryset.filter(
-            location__level="zone"
-        )
-
+        queryset = queryset.filter(location__level__iexact="zone")
     elif geography == "woreda":
+        queryset = queryset.filter(location__level__iexact="woreda")
 
-        queryset = queryset.filter(
-            location__level="woreda"
-        )
+    # 4. Apply dynamic foreign key and attribute filters
+    if topic_id:
+        queryset = queryset.filter(indicator__topic_id=topic_id)
+    if indicator_id:
+        queryset = queryset.filter(indicator_id=indicator_id)
+    if year:
+        queryset = queryset.filter(year=year)
+    if location_id:
+        queryset = queryset.filter(location_id=location_id)
+    if cause_id:
+        queryset = queryset.filter(cause_id=cause_id)
+    if sex_id:
+        queryset = queryset.filter(sex_id=sex_id)
+    if facility_category_id:
+        queryset = queryset.filter(facility_category_id=facility_category_id)
 
     # ==========================================
     # KPI Cards
     # ==========================================
-
     metrics = queryset.aggregate(
-
         total_value=Sum("value"),
-
         average_value=Avg("value"),
-
         total_records=Count("id"),
-
         latest_year=Max("year"),
     )
 
     # ==========================================
-    # Chart Data
+    # Chart Data (Aggregated by Year)
     # ==========================================
-
     chart_queryset = (
         queryset
+        .values("year")
+        .annotate(
+            avg_value=Avg("value"),
+            avg_lower=Avg("lower_bound"),
+            avg_upper=Avg("upper_bound")
+        )
         .order_by("year")
     )
 
-    chart_labels = []
-    chart_values = []
-    chart_lower = []
-    chart_upper = []
-
-    for row in chart_queryset:
-
-        chart_labels.append(
-            row.year
-        )
-
-        chart_values.append(
-            float(row.value)
-        )
-
-        chart_lower.append(
-            float(row.lower_bound)
-            if row.lower_bound
-            else None
-        )
-
-        chart_upper.append(
-            float(row.upper_bound)
-            if row.upper_bound
-            else None
-        )
+    chart_labels = [item["year"] for item in chart_queryset]
+    chart_values = [float(item["avg_value"]) if item["avg_value"] is not None else 0.0 for item in chart_queryset]
+    chart_lower = [float(item["avg_lower"]) if item["avg_lower"] is not None else 0.0 for item in chart_queryset]
+    chart_upper = [float(item["avg_upper"]) if item["avg_upper"] is not None else 0.0 for item in chart_queryset]
 
     chart_data = {
         "labels": chart_labels,
@@ -270,180 +134,72 @@ def dashboard_view(request):
     # ==========================================
     # Map Dataset
     # ==========================================
-
     map_queryset = (
         queryset
-        .values(
-            "location__id",
-            "location__name"
-        )
-        .annotate(
-            value=Avg("value")
-        )
+        .values("location__id", "location__name")
+        .annotate(value=Avg("value"))
     )
 
-    map_data = []
-
-    for item in map_queryset:
-
-        map_data.append({
-
-            "id":
-                item["location__id"],
-
-            "name":
-                item["location__name"],
-
-            "value":
-                float(item["value"]),
-        })
+    map_data = [
+        {
+            "id": item["location__id"],
+            "name": item["location__name"],
+            "value": float(item["value"]) if item["value"] is not None else 0.0,
+        }
+        for item in map_queryset
+    ]
 
     # ==========================================
-    # Rankings
+    # Rankings & Tables
     # ==========================================
-
-    rankings = (
-        queryset
-        .order_by("-value")
-        [:20]
-    )
+    rankings = queryset.order_by("-value")[:20]
+    table_records = queryset.order_by("-year")[:100]
 
     # ==========================================
-    # Latest Records
+    # Filter Dropdown Lists
     # ==========================================
-
-    table_records = (
-        queryset
-        .order_by("-year")
-        [:100]
-    )
-
-    # ==========================================
-    # Filter Lists
-    # ==========================================
-
     topics = Topic.objects.all()
-
     indicators = Indicator.objects.all()
-
     locations = Location.objects.all()
-
     sexes = Sex.objects.all()
-
     causes = Cause.objects.all()
-
-    facility_categories = (
-        FacilityCategory.objects.all()
-    )
-
-    years = (
-        Observation.objects
-        .values_list(
-            "year",
-            flat=True
-        )
-        .distinct()
-        .order_by("-year")
-    )
-
-    # ==========================================
-    # GeoJSON URL
-    # ==========================================
-
+    facility_categories = FacilityCategory.objects.all()
+    years = Observation.objects.values_list("year", flat=True).distinct().order_by("-year")
+    age_groups = AgeGroup.objects.all()
     geojson_url = "/api/geojson/"
 
-    # ==========================================
-    # Context
-    # ==========================================
-
     context = {
-
-        "upload_form":
-            ExcelUploadForm(),
-
-        "topics":
-            topics,
-
-        "indicators":
-            indicators,
-
-        "locations":
-            locations,
-
-        "sexes":
-            sexes,
-
-        "causes":
-            causes,
-
-        "facility_categories":
-            facility_categories,
-
-        "years":
-            years,
-
-        "records":
-            table_records,
-
-        "rankings":
-            rankings,
-
-        "chart_data":
-            json.dumps(chart_data),
-
-        "map_data":
-            json.dumps(map_data),
-
-        "geojson_url":
-            geojson_url,
-
-        "selected_topic":
-            topic_id,
-
-        "selected_indicator":
-            indicator_id,
-
-        "selected_year":
-            year,
-
-        "selected_location":
-            location_id,
-
-        "selected_cause":
-            cause_id,
-
-        "selected_sex":
-            sex_id,
-
-        "selected_facility_category":
-            facility_category_id,
-
-        "selected_geography":
-            geography,
-
-        "total_value":
-            metrics["total_value"]
-            or 0,
-
-        "average_value":
-            metrics["average_value"]
-            or 0,
-
-        "total_records":
-            metrics["total_records"]
-            or 0,
-
-        "latest_year":
-            metrics["latest_year"]
-            or "-",
+        "upload_form": ExcelUploadForm(),
+        "topics": topics,
+        "indicators": indicators,
+        "locations": locations,
+        "sexes": sexes,
+        "causes": causes,
+        "facility_categories": facility_categories,
+        "years": years,
+        "age_groups": age_groups,
+        "records": table_records,
+        "rankings": rankings,
+        "chart_data": json.dumps(chart_data),
+        "map_data": json.dumps(map_data),
+        "geojson_url": geojson_url,
+        "selected_topic": topic_id,
+        "selected_indicator": indicator_id,
+        "selected_year": year,
+        "selected_location": location_id,
+        "selected_cause": cause_id,
+        "selected_sex": sex_id,
+        "selected_age_group": age_group_id,
+        "selected_facility_category": facility_category_id,
+        "selected_geography": geography,
+        "total_value": metrics["total_value"] or 0,
+        "average_value": metrics["average_value"] or 0,
+        "total_records": metrics["total_records"] or 0,
+        "latest_year": metrics["latest_year"] or "-",
     }
 
-    return render(
-        request,
-        "analytics_hub/dashboard.html",
-        context
-    )
-@csrf_exempt
+    return render(request, "analytics_hub/dashboard.html", context)
+
 def ai_chatbot_api(request):
     if request.method == 'POST':
         try:

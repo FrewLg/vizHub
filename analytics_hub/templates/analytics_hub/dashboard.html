@@ -25,8 +25,7 @@
         }
     </style>
     <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- html2canvas and jsPDF for PDF report generation -->
+     <!-- html2canvas and jsPDF for PDF report generation -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
@@ -121,7 +120,7 @@
 
     <!-- Topic Selector -->
     <div>
-        <label class="font-semibold block mb-1 text-gray-700 dark:text-gray-300">Topic</label>
+        <label class="font-semibold block mb-1 text-gray-700 dark:text-gray-300">Analysis Topic</label>
         <select name="topic" class="w-full border dark:border-gray-700 bg-white dark:bg-gray-900 p-1.5 rounded">
             <option value="">-- All Topics --</option>
             {% for topic in topics %}
@@ -165,7 +164,7 @@
 
     <!-- Cause Selector (Optional/Conditional) -->
     <div>
-        <label class="font-semibold block mb-1 text-gray-700 dark:text-gray-300">Cause of Morbidity/Mortality</label>
+        <label class="font-semibold block mb-1 text-gray-700 dark:text-gray-300">Disease </label>
         <select name="cause" class="w-full border dark:border-gray-700 bg-white dark:bg-gray-900 p-1.5 rounded">
             <option value="">-- All Causes --</option>
             {% for cause in causes %}
@@ -174,6 +173,18 @@
         </select>
     </div>
 
+    <!-- Age Group Filter Select -->
+<select name="age_group" class="text-xs border rounded p-1 dark:bg-gray-700 dark:border-gray-600">
+    <option value="">All Age Groups</option>
+    {% for ag in age_groups %}
+        <option value="{{ ag.id }}" {% if selected_age_group|slugify == ag.id|slugify %}selected{% endif %}>{{ ag.name }}</option>
+    {% endfor %}
+</select>
+
+<!-- Table Cell for Age Group -->
+<td class="px-3 py-2 whitespace-nowrap text-gray-600 dark:text-gray-400">
+    {{ record.age_group.name|default:"--" }}
+</td>
     <!-- Sex Selector -->
     <div>
         <label class="font-semibold block mb-1 text-gray-700 dark:text-gray-300">Sex</label>
@@ -229,44 +240,37 @@
                 </div>
 
                 <!-- Numerical KPI summary Cards -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <!-- <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border dark:border-gray-700">
                         <p class="text-gray-500 dark:text-gray-400 text-xs font-bold uppercase tracking-wider">Aggregated Metrics Value</p>
                         <p class="text-3xl font-black text-blue-600 dark:text-blue-400 mt-1">{{ total_metrics }}</p>
                     </div>
-                </div>
-
-                <!-- Interactive Visualization Grid -->
-                <!-- <div class="grid grid-cols-1 xl:grid-cols-2 gap-6"> -->
-                    <!-- Chart 1 -->
-                    <!-- <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border dark:border-gray-700 flex flex-col">
-                        <div class="flex justify-between items-center mb-3 border-b dark:border-gray-700 pb-2">
-                            <h3 class="font-bold text-gray-700 dark:text-gray-200 text-xs">Analytics Breakdown View</h3>
-                            <button onclick="downloadChart('chartCanvas1')" class="text-[10px] bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 border dark:border-gray-600 px-2 py-1 rounded">{% trans "Download chart" %}</button>
-                        </div>
-                        <div class="relative flex-1 min-h-[260px]">
-                            <canvas id="chartCanvas1"></canvas>
-                        </div>
-                    </div> -->
-
-                    <!-- Chart 2 (Timeline) -->
-                    <!-- Interactive Visualization Grid -->
-
-                    <!-- Analytics Visualization Workspace -->
-<div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
-    <!-- Trend Line Chart -->
+                </div> -->
+ <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6"> 
+                 
+<!-- Trend Line Chart -->
     <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border dark:border-gray-700 flex flex-col">
         <div class="flex justify-between items-center mb-3 border-b dark:border-gray-700 pb-2">
-            <h3 class="font-bold text-gray-700 dark:text-gray-200 text-xs">Temporal Trend & Uncertainty Bounds</h3>
+            <div>
+                <h3 class="font-bold text-gray-700 dark:text-gray-200 text-xs">Temporal Trend & Uncertainty Bounds</h3>
+                <p class="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium mt-0.5">
+                    {% if selected_indicator %}
+                        {% for ind in indicators %}{% if ind.id|slugify == selected_indicator|slugify %}{{ ind.topic.name }} &rsaquo; {{ ind.name }}{% endif %}{% endfor %}
+                    {% elif selected_topic %}
+                        {% for top in topics %}{% if top.id|slugify == selected_topic|slugify %}{{ top.name }} (All Indicators){% endif %}{% endfor %}
+                    {% else %}
+                        All Topics & Indicators (National/Regional Aggregate)
+                    {% endif %}
+                </p>
+            </div>
             <span class="text-[10px] text-gray-400">Timeline Analysis</span>
         </div>
-        <div class="relative flex-1 min-h-[280px]">
+        <div class="relative w-full h-[300px]">
             <canvas id="trendChart"></canvas>
         </div>
     </div>
 
-    <!-- Rankings / Comparison Bar Chart -->
-    <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border dark:border-gray-700 flex flex-col">
+     <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border dark:border-gray-700 flex flex-col">
         <div class="flex justify-between items-center mb-3 border-b dark:border-gray-700 pb-2">
             <h3 class="font-bold text-gray-700 dark:text-gray-200 text-xs">Top Regional Performance</h3>
             <span class="text-[10px] text-gray-400">Location Breakdown</span>
@@ -275,6 +279,8 @@
             <canvas id="rankingChart"></canvas>
         </div>
     </div>
+
+    
 </div>
 
 
@@ -292,16 +298,15 @@
                         <table id="records-table" class="w-full text-left border-collapse text-xs">
                             <thead>
                                 <tr class="bg-gray-100 dark:bg-gray-700/50 border-b dark:border-gray-700 text-gray-600 dark:text-gray-300">
-                                    <th class="p-2 border-r dark:border-gray-700">Topic</th>
-                                    <th class="p-2 border-r dark:border-gray-700">Date</th>
-                                    <th class="p-2 border-r dark:border-gray-700">Disease</th>
-                                    <th class="p-2 border-r dark:border-gray-700">Age Group</th>
+                                     <th class="p-2 border-r dark:border-gray-700">Date</th>
+                                    <th class="p-2 border-r dark:border-gray-700">Indicator</th>
+                                    <th class="p-2 border-r dark:border-gray-700">Gender</th>
                                     <th class="p-2 border-r dark:border-gray-700">Facility</th>
                                     <th class="p-2 border-r dark:border-gray-700">Location</th>
                                     <th class="p-2">Metric Value</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <!-- <tbody>
                                 {% for rec in records %}
                                 <tr class="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/30">
                                     <td class="p-2 border-r dark:border-gray-700">{{ rec.get_topic_display }}</td>
@@ -317,7 +322,46 @@
                                     <td colspan="7" class="p-4 text-center text-gray-400">No records found for the selected filters.</td>
                                 </tr>
                                 {% endfor %}
-                            </tbody>
+                            </tbody> -->
+                            <tbody class="divide-y divide-gray-200 dark:divide-gray-700 text-xs">
+    {% for record in records %}
+    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+        <!-- Date / Year -->
+                                             <!-- <td class="p-2 border-r dark:border-gray-700">{{ record.get_topic }}</td> -->
+
+        <td class="px-3 py-2 whitespace-nowrap text-gray-700 dark:text-gray-300">{{ record.year }}</td>
+        
+        <!-- Disease / Topic -->
+        <td class="px-3 py-2 whitespace-nowrap font-medium text-gray-900 dark:text-gray-100">
+            {{ record.indicator.topic.name }} <span class="text-gray-400 font-normal">({{ record.indicator.name }})</span>
+        </td>
+        
+        <!-- Age Group / Sex -->
+        <td class="px-3 py-2 whitespace-nowrap text-gray-600 dark:text-gray-400">
+            {{ record.sex.name|default:"--" }}
+        </td>
+        
+        <!-- Facility Category -->
+        <td class="px-3 py-2 whitespace-nowrap text-gray-600 dark:text-gray-400">
+            {{ record.facility_category.name|default:"--" }}
+        </td>
+        
+        <!-- Location -->
+        <td class="px-3 py-2 whitespace-nowrap text-gray-600 dark:text-gray-400">
+            {{ record.location.name }}
+        </td>
+        
+        <!-- Metric Value -->
+        <td class="px-3 py-2 whitespace-nowrap font-semibold text-emerald-600 dark:text-emerald-400 text-right">
+            {{ record.value|floatformat:2 }}
+        </td>
+    </tr>
+    {% empty %}
+    <tr>
+        <td colspan="6" class="px-3 py-6 text-center text-gray-400">No records found matching current filters.</td>
+    </tr>
+    {% endfor %}
+</tbody>
                         </table>
                     </div>
                 </div>
@@ -381,30 +425,11 @@
             document.getElementById('theme-icon').textContent = '☀️';
         }
 
-        function handleTopicDependency() {
-            const checkboxes = document.querySelectorAll('.topic-checkbox:checked');
-            const diseaseGroup = document.getElementById('disease-filter-group');
-            
-            let showDisease = false;
-            checkboxes.forEach(cb => {
-                const val = cb.value;
-                if (val.includes('covid') || val.includes('diarrhea') || val.includes('fever') || val.includes('ari') || val.includes('malaria')) {
-                    showDisease = true;
-                }
-            });
+       
 
-            if (showDisease) {
-                diseaseGroup.classList.remove('hidden');
-            } else {
-                diseaseGroup.classList.add('hidden');
-            }
-        }
+        // document.addEventListener('DOMContentLoaded', handleTopicDependency);
 
-        document.addEventListener('DOMContentLoaded', handleTopicDependency);
-
-        // Chart.js Setup
-         
-
+       
      
 
         function downloadChart(canvasId) {

@@ -375,7 +375,13 @@ class Observation(models.Model):
         auto_now=True
     )
 
-    class Meta:
+    age_group = models.ForeignKey(
+        'AgeGroup', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True
+    )
+class Meta:
 
         indexes = [
             models.Index(
@@ -460,7 +466,6 @@ class VisualizationConfig(models.Model):
         max_length=100,
         blank=True
     )
-
     def __str__(self):
         return f"{self.indicator.name}"
 
@@ -475,3 +480,12 @@ class DimensionValue(models.Model):
     )
 
     name = models.CharField(max_length=255)
+
+class AgeGroup(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    code = models.SlugField(max_length=100, unique=True, blank=True)
+
+    def __str__(self):
+        return self.name
+
+

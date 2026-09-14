@@ -1,7 +1,7 @@
 import pandas as pd
 from django.db import transaction
 from django.utils.text import slugify
-from .models import Observation, Topic, Indicator, Location, Cause, Sex, FacilityCategory
+from .models import Observation, Topic, Indicator, Location, Cause, Sex, FacilityCategory, AgeGroup
 
 def process_excel_upload(excel_file):
     df = pd.read_excel(excel_file)
@@ -62,6 +62,20 @@ def process_excel_upload(excel_file):
             lower = float(row['lower_bound']) if pd.notna(row.get('lower_bound')) else None
             upper = float(row['upper_bound']) if pd.notna(row.get('upper_bound')) else None
 
+            age_group_name = str(row.get('age_group', 'All Ages')).strip()
+            age_group_obj = None
+            if age_group_name.lower() not in ['nan', '', 'none']:
+                age_base_code = slugify(age_group_name) or 'age'
+                age_code = age_base_code
+                counter = 1
+                while AgeGroup.objects.filter(code=age_code).exclude(name=age_group_name).exists():
+                    age_code = f"{age_base_code}-{counter}"
+                    counter += 1
+                age_group_obj, _ = AgeGroup.objects.get_or_create(
+                    name=age_group_name,
+                    defaults={'code': age_code}
+                )
+ 
             observations_to_create.append(
                 Observation(
                     indicator=indicator_obj,
@@ -71,6 +85,7 @@ def process_excel_upload(excel_file):
                     facility_category=facility_category_obj,
                     year=year_val,
                     value=val,
+                    age_group=age_group_obj,
                     lower_bound=lower,
                     upper_bound=upper
                 )
