@@ -5,14 +5,6 @@ alembic==1.15.2
 altair==6.2.2
 annotated-types==0.7.0
 anyio==4.9.0
-apache-airflow==3.0.0
-apache-airflow-core==3.0.0
-apache-airflow-providers-common-compat==1.6.0
-apache-airflow-providers-common-io==1.5.4
-apache-airflow-providers-common-sql==1.26.0
-apache-airflow-providers-smtp==2.0.3
-apache-airflow-providers-standard==1.0.0
-apache-airflow-task-sdk==1.0.0
 apturl==0.5.2
 arabic-reshaper==3.0.0
 argcomplete==3.6.2
