@@ -1,5 +1,5 @@
-# Health Data Visualization for EPHI
+# Health Data Visualization
 # Vizhub
 # NDMC
 
-# National Data AmangementFor Health -EPHI
+# National Data AmangementFor Health -NDMC
