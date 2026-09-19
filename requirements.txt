@@ -233,7 +233,7 @@ django-allauth==65.13.1
 django-widget-tweaks==1.5.1
 django-jazzmin==3.0.1
 django-unfold==0.81.0
-
+gunicorn==23.0.0
 mysql-connector-python==9.0.0
 
 Pillow==11.3.0
