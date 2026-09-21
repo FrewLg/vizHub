@@ -50,9 +50,9 @@ ALLOWED_HOSTS = ['*']
 # Application definition
 
 INSTALLED_APPS = [
-    # 'unfold',
+    'unfold',
     # "baton", 
-    "jazzmin",
+    # "jazzmin",
 
     "django.contrib.admin",
     "django.contrib.auth",
@@ -67,15 +67,52 @@ INSTALLED_APPS = [
     'analytics_hub',  
 ]
 
+# UNFOLD = {
+#     "SITE_TITLE": "VizHub Admin",
+#     "SITE_HEADER": "EPHI Admin",
+#     "SITE_URL": "/",
+#     "SITE_LOGO": {
+#         "light": "https://irb.ephi.gov.et/files/site_setting/3a36ebf9b1124f21ee0d704e36272ec9.png",
+#         "dark": "https://irb.ephi.gov.et/files/site_setting/3a36ebf9b1124f21ee0d704e36272ec9.png",
+#     },
+# }
 UNFOLD = {
-    "SITE_TITLE": "VizHub Admin",
-    "SITE_HEADER": "EPHI Admin",
+    "SITE_TITLE": "VizHub",
+    "SITE_HEADER": "VizHub Analytics",
+    "SITE_SUBHEADER": "Data Insights & Visualization",
     "SITE_URL": "/",
+
+    "SITE_ICON": {
+        "light": "/static/images/logo.png",
+        "dark": "/static/images/logo.png",
+    },
+
     "SITE_LOGO": {
         "light": "https://irb.ephi.gov.et/files/site_setting/3a36ebf9b1124f21ee0d704e36272ec9.png",
         "dark": "https://irb.ephi.gov.et/files/site_setting/3a36ebf9b1124f21ee0d704e36272ec9.png",
     },
+
+    "SHOW_HISTORY": True,
+    "SHOW_VIEW_ON_SITE": False,
+
+    "ENVIRONMENT": "analytics_hub.admin.environment_callback",
+
+    "COLORS": {
+        "primary": {
+            "50": "240 249 255",
+            "100": "224 242 254",
+            "200": "186 230 253",
+            "300": "125 211 252",
+            "400": "56 189 248",
+            "500": "14 165 233",
+            "600": "2 132 199",
+            "700": "3 105 161",
+            "800": "7 89 133",
+            "900": "12 74 110",
+        },
+    },
 }
+
 BATON = {
     "SITE_HEADER": "VizHub",
     "SITE_TITLE": "VizHub Admin",

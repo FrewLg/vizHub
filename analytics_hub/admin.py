@@ -18,6 +18,8 @@ from .models import (
     DimensionValue,
 )
 
+def environment_callback(request):
+    return ["Production", "success"]
 
 class ObservationAdminForm(forms.ModelForm):
     class Meta:
