@@ -51,7 +51,7 @@ ALLOWED_HOSTS = ['*']
 
 INSTALLED_APPS = [
     # 'unfold',
-    "baton",
+    "baton", 
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
