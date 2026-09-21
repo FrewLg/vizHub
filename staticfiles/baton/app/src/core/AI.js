@@ -1,0 +1,1113 @@
+import 'regenerator-runtime/runtime'
+import $ from 'jquery'
+import Translator from './i18n'
+const Diff = require('diff')
+
+/**
+ * Built-in editor adapter for django-ckeditor (CKEditor 4).
+ *
+ * An editor adapter exposes a uniform interface used by Baton AI to discover
+ * rich-text fields and to read/write their content, regardless of the editor
+ * implementation. Third party editors (e.g. django-editor-js) can register
+ * their own adapter via `Baton.AI.registerEditorAdapter(...)`.
+ *
+ * Adapter contract:
+ *   getFields()              -> array of field ids owned by the editor
+ *   getValue(fieldId)        -> field value, or undefined if not owned
+ *   setValue(fieldId, value) -> true if handled, false if not owned
+ *   setCorrect(fieldId, icon)-> true if handled, false if not owned
+ */
+const CKEditorAdapter = {
+  name: 'ckeditor',
+  getFields: function () {
+    return window.CKEDITOR ? Object.keys(window.CKEDITOR.instances) : []
+  },
+  getValue: function (fieldId) {
+    return window.CKEDITOR?.instances[fieldId]?.getData()
+  },
+  setValue: function (fieldId, value) {
+    if (window.CKEDITOR?.instances[fieldId]) {
+      window.CKEDITOR.instances[fieldId].setData(value)
+      return true
+    }
+    return false
+  },
+  setCorrect: function (fieldId, icon) {
+    if (window.CKEDITOR?.instances[fieldId]) {
+      $(`#${fieldId}`).parent('.django-ckeditor-widget').after(icon)
+      return true
+    }
+    return false
+  },
+}
+
+const AI = {
+  editorFields: [],
+  // Registered third party editor adapters, checked before the built-in ones
+  editorAdapters: [],
+  /**
+   * AI component
+   *
+   * Automatic translations
+   */
+  init: function (config, page) {
+    this.t = new Translator($('html').attr('lang'))
+    this.config = config
+    this.editorFields = this.getEditorFields()
+    if (config.ai.enableTranslations && (page === 'change_form' || page === 'add_form')) {
+      this.activateTranslations()
+    }
+    if (config.ai.enableCorrections && (page === 'change_form' || page === 'add_form')) {
+      this.activateCorrections()
+    }
+  },
+  decodeHtml(html) {
+    const txt = document.createElement('textarea')
+    txt.innerHTML = html
+    return txt.value
+  },
+  getBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.readAsDataURL(file)
+      reader.onload = () => resolve(reader.result)
+      reader.onerror = (error) => reject(error)
+    })
+  },
+  async urlToBase64(url) {
+    // fetch a same-origin image (e.g. an already saved one) and turn it into a
+    // base64 data url, so we can send the bytes inline instead of a url the
+    // remote AI api may not be able to reach (e.g. localhost during development)
+    const response = await fetch(url)
+    const blob = await response.blob()
+    return this.getBase64(blob)
+  },
+  activateTranslations: function () {
+    // check if form has fields that need translation
+    let hasTranslations = false
+    const firstOtherLanguage = this.config.otherLanguages.length ? this.config.otherLanguages[0] : null
+
+    if (firstOtherLanguage) {
+      const re = new RegExp(`_${this.config.defaultLanguage}$`)
+      const fieldsIds = $(`[id$=_${this.config.defaultLanguage}]`).filter(
+        (_, el) => !$(el).attr('id').includes('__prefix__'),
+      )
+
+      for (const fieldId of fieldsIds) {
+        if ($(`#${fieldId.id}`.replace(re, `_${firstOtherLanguage}`)).length) {
+          hasTranslations = true
+          break
+        }
+      }
+    }
+
+    if (!hasTranslations) {
+      return
+    }
+    // add translate button if needed
+    const translateButton = $('<a />', { id: 'translate-tool', href: 'javascript:void(0); ' })
+      .on('click', this.translate.bind(this))
+      .prepend($('<span class="material-symbols-outlined">translate</span>'))
+      .append($('<span />').text(` ${this.t.get('translate')}`))
+    const container = $('ul.object-tools')
+    if (container.length) {
+      // change form
+      container.prepend($('<li />').append(translateButton))
+    } else {
+      // add form
+      $('<ul />', { class: 'object-tools' }).prepend($('<li />').append(translateButton)).prependTo('#content-main')
+    }
+  },
+  translate: function () {
+    const self = this
+    // spinner
+    const overlay = $('<div />', { class: 'spinner-overlay' }).appendTo(document.body)
+    const spinner = $('<i />', { class: 'material-symbols-outlined icon-spin' }).text('progress_activity')
+    $('<div />').append($('<p />').append(spinner)).appendTo(overlay)
+
+    // retrieve necessary translations
+    const payload = []
+    // collect candidate source fields (default language), both native inputs and
+    // editor-managed fields. Emptiness is evaluated editor-aware via fieldText().
+    const re = new RegExp(`_${this.config.defaultLanguage}$`)
+    const sourceIds = new Set()
+    $(`[id$=_${this.config.defaultLanguage}]`)
+      .filter((_, el) => !$(el).attr('id').includes('__prefix__'))
+      .each((_, el) => sourceIds.add($(el).attr('id')))
+    this.editorFields.forEach(function (fieldId) {
+      if (!fieldId.includes('__prefix__') && re.test(fieldId)) {
+        sourceIds.add(fieldId)
+      }
+    })
+
+    sourceIds.forEach(function (fieldId) {
+      const baseId = fieldId.replace(re, '')
+      const isEditor = self.editorFields.includes(fieldId)
+      const sourceText = self.fieldText(fieldId)
+      if (sourceText === '') {
+        return
+      }
+      const missing = []
+      self.config.otherLanguages.forEach(function (lng) {
+        if (self.fieldText(`${baseId}_${lng}`) === '') {
+          missing.push(lng)
+        }
+      })
+      if (missing.length > 0) {
+        payload.push({
+          text: isEditor ? self.decodeHtml(sourceText) : sourceText,
+          field: baseId,
+          languages: missing,
+          defaultLanguage: self.config.defaultLanguage,
+        })
+      }
+    })
+    // use api
+    $.ajax({
+      url: this.config.ai.translateApiUrl,
+      method: 'POST',
+      data: JSON.stringify({
+        items: payload,
+        model: this.config.ai.translationsModel,
+      }),
+      dataType: 'json',
+      contentType: 'application/json',
+      headers: { 'X-CSRFToken': $('input[name=csrfmiddlewaretoken]').val() },
+    })
+      .done(function (data) {
+        try {
+          ;(data.data?.items || []).forEach(function (item) {
+            const key = `${item.id}_${item.language}`
+            if (!self.setEditorFieldValue(key, item.translation)) {
+              $('#' + key).val(item.translation)
+            }
+          })
+          overlay.remove()
+        } catch (err) {
+          console.log(err)
+          alert(self.t.get('error') + ': ' + err)
+          overlay.remove()
+        }
+      })
+      .fail(function (err) {
+        console.log(err)
+        alert(self.t.get('aiApiError') + ': ' + (err.responseJSON?.data?.message || err.statusText))
+        overlay.remove()
+      })
+  },
+  addVision(fieldSelector, conf, onlyEvents = false) {
+    const self = this
+    const fields = $(fieldSelector)
+
+    console.log('FIELDS', fields)
+    fields.each(function (_, f) {
+      const field = $(f)
+      console.log('F', f)
+      let target = null
+      const id = field.attr('id')
+      // inline?
+      const lastDash = id.lastIndexOf('-')
+      if (lastDash !== -1) {
+        const prefix = id.substring(0, lastDash)
+        target = $('#' + prefix + '-' + conf.target)
+      } else {
+        target = $('#id_' + conf.target)
+      }
+      const targetLabel = $(`label[for="${target.attr('id')}"]`)
+      targetLabel.find('.material-symbols-outlined').remove()
+      let visionButton
+      if (!onlyEvents) {
+        visionButton = $('<a />', {
+          class: 'btn btn-sm btn-primary me-2 mt-1',
+          href: 'javascript:void(0)',
+          id: `vision-button-${field.attr('id')}`,
+        })
+          .prepend($('<span class="material-symbols-outlined">eyeglasses</span>'))
+          .append(
+            $('<span />').text(
+              ` ${self.t.get('generateAltText')}${targetLabel ? ': ' + targetLabel.text().replace(':', '') : ''}`,
+            ),
+          )
+      } else {
+        visionButton = $(`#vision-button-${field.attr('id')}`)
+      }
+      visionButton.on('click', function () {
+        self.handleVision(field, conf)
+      })
+      field.after($('<div />').append(visionButton))
+    })
+  },
+  handleVision: async function (f, conf) {
+    const self = this
+    if (!conf.target) {
+      return
+    }
+
+    const field = $(f)
+    let target = null
+    const id = field.attr('id')
+    // inline?
+    const lastDash = id.lastIndexOf('-')
+    if (lastDash !== -1) {
+      const prefix = id.substr(0, lastDash)
+      target = $('#' + prefix + '-' + conf.target)
+    } else {
+      target = $('#id_' + conf.target)
+    }
+
+    const targetId = target.attr('id')
+    const chars = conf?.chars || 100
+
+    // do not overwrite an already filled target: mirror the translate behaviour,
+    // where fields that are already compiled are left untouched
+    if (self.fieldText(targetId) !== '') {
+      return
+    }
+
+    // spinner
+    const overlay = $('<div />', { class: 'spinner-overlay' }).appendTo(document.body)
+    const spinner = $('<i />', { class: 'material-symbols-outlined icon-spin' }).text('progress_activity')
+    $('<div />').append($('<p />').append(spinner)).appendTo(overlay)
+
+    const relativePath = $(field).parent().find('a').attr('data-url') || $(field).parent().find('a').attr('href')
+
+    let url
+    if ($(field).prop('files').length > 0) {
+      const file = $(field).prop('files')[0]
+      url = await this.getBase64(file)
+    } else if (relativePath && relativePath !== '#') {
+      // the saved image is served by this (possibly local) server: read it from
+      // the page and send it as base64, so the remote api does not need to fetch
+      // a url it may not reach (e.g. localhost). fall back to the raw url on error
+      const absoluteUrl = window.location.origin + relativePath
+      try {
+        url = await this.urlToBase64(absoluteUrl)
+      } catch (err) {
+        console.log(err)
+        url = absoluteUrl
+      }
+    }
+
+    const payload = {
+      id: field.attr('id'),
+      url: url,
+      chars: parseInt(chars),
+      language: conf?.language || this.config.defaultLanguage,
+      model: self.config.ai.visionModel,
+    }
+    // use api
+    $.ajax({
+      url: this.config.ai.visionApiUrl,
+      method: 'POST',
+      data: JSON.stringify(payload),
+      dataType: 'json',
+      contentType: 'application/json',
+      headers: { 'X-CSRFToken': $('input[name=csrfmiddlewaretoken]').val() },
+    })
+      .done(function (data) {
+        try {
+          $('#' + targetId).val(data.data.description)
+          overlay.remove()
+        } catch (err) {
+          console.log(err)
+          alert(self.t.get('error') + ': ' + err)
+          overlay.remove()
+          return null
+        }
+      })
+      .fail(function (err) {
+        console.log(err)
+        overlay.remove()
+        alert(self.t.get('aiApiError') + ': ' + (err.responseJSON?.data?.message || err.statusText))
+      })
+  },
+  addSummarization(fieldName, conf) {
+    const self = this
+    const field = $(`#id_${fieldName}`)
+    const targetLabel = $(`label[for="id_${conf.target}"]`)
+    targetLabel.find('.material-symbols-outlined').remove()
+    const summarizeButton = $('<a />', { class: 'btn btn-sm btn-primary mb-2', href: 'javascript:void(0)' })
+      .on('click', function () {
+        self.handleSummarization(field, targetLabel, conf)
+      })
+      .prepend($('<span class="material-symbols-outlined">summarize</span>'))
+      .append($('<span />').text(` ${this.t.get('generateSummary')}: ${targetLabel.text().replace(':', '')}`))
+
+    field.after($('<div />').append(summarizeButton))
+  },
+  handleSummarization(field, targetLabel, conf) {
+    const self = this
+    const content = `
+<div>
+<label for="words" class="mb-2" style="font-weight: 700">${this.t.get('words')}</label>
+<input type="number" name="words" id="${field.attr('id')}_words" value="${conf?.words || 100}" class="form-control" />
+</div>
+<div class="mt-2">
+<label for="words" class="mb-2 d-block" style="font-weight: 700">${this.t.get('useBulletedList')}</label>
+<input type="checkbox" name="useBulletedList" id="${field.attr('id')}_useBulletedList" value="1" ${
+      conf?.useBulletedList ? 'checked' : ''
+    } class="form-check-input" />
+</div>
+`
+    const myModal = new Baton.Modal({
+      title: this.t.get('generateSummary') + ' - ' + targetLabel.text(),
+      size: 'md',
+      actionBtnLabel: this.t.get('generate'),
+      actionBtnCb: function () {
+        self.summarize(field, conf, myModal)
+      },
+      content,
+    })
+
+    myModal.open()
+  },
+  summarize: function (field, conf, modal) {
+    const self = this
+    const targetId = `id_${conf.target}`
+    const words = modal.modalObj.find(`#${field.attr('id')}_words`).val()
+    if (words === '' || !conf.target) {
+      return
+    }
+    const useBulletedList = modal.modalObj.find(`#${field.attr('id')}_useBulletedList`).is(':checked')
+
+    // spinner
+    const overlay = $('<div />', { class: 'spinner-overlay' }).appendTo(document.body)
+    const spinner = $('<i />', { class: 'material-symbols-outlined icon-spin' }).text('progress_activity')
+    $('<div />').append($('<p />').append(spinner)).appendTo(overlay)
+
+    // retrieve necessary translations
+    const html = this.getEditorFieldValue(field.attr('id'))
+    const payload = {
+      id: field.attr('id'),
+      text: html ? this.decodeHtml(html) : $(`#${field.attr('id')}`).val(),
+      words: parseInt(words),
+      useBulletedList: useBulletedList,
+      language: conf?.language || this.config.defaultLanguage,
+      model: self.config.ai.summarizationsModel,
+    }
+    // use api
+    $.ajax({
+      url: this.config.ai.summarizeApiUrl,
+      method: 'POST',
+      data: JSON.stringify(payload),
+      dataType: 'json',
+      contentType: 'application/json',
+      headers: { 'X-CSRFToken': $('input[name=csrfmiddlewaretoken]').val() },
+    })
+      .done(function (data) {
+        try {
+          if (!self.setEditorFieldValue(targetId, data.data.summary)) {
+            $('#' + targetId).val(data.data.summary)
+          }
+          overlay.remove()
+        } catch (err) {
+          console.log(err)
+          alert(self.t.get('error') + ': ' + err)
+          overlay.remove()
+          return null
+        }
+        modal.close()
+        modal.destroy()
+      })
+      .fail(function (err) {
+        console.log(err)
+        overlay.remove()
+        alert(self.t.get('aiApiError') + ': ' + (err.responseJSON?.data?.message || err.statusText))
+        modal.close()
+        modal.destroy()
+      })
+  },
+  addImageGeneration(fieldName, onlyEvents = false) {
+    let generateImageButton
+    const field = $(`#id_${fieldName}`)
+
+    if (!onlyEvents) {
+      generateImageButton = $('<a />', {
+        id: `generate-image-${fieldName}`,
+        class: 'btn btn-sm btn-primary mt-1',
+        href: 'javascript:void(0)',
+      })
+        .prepend($('<span class="material-symbols-outlined">image</span>'))
+        .append($('<span />').text(` ${this.t.get('generateImageFromAI')}`))
+
+      field.after($('<div />').append(generateImageButton))
+    } else {
+      generateImageButton = document.getElementById(`generate-image-${fieldName}`)
+    }
+
+    const content = `
+        <div>
+        <label class="block mb-1" style="font-weight: 700">${this.t.get('fileName')}</label>
+        <input class="form-control" id="ai-image-name" value="ai_image" />
+        <label class="block mb-1 mt-2" style="font-weight: 700">${this.t.get('aspectRatio')}</label>
+        <select class="form-select" id="ai-image-aspect-ratio">
+            <option value="1">1024x1024</option>
+            <option value="2">1536x1024</option>
+            <option value="3">1024x1536</option>
+        </select>
+        <label class="block mt-2 mb-1" style="font-weight: 700">${this.t.get('describeImageContent')}</label>
+        <textarea class="form-control" id="ai-image-description"></textarea>
+        <div id="ai-image-preview"></div>
+        </div>
+        `
+
+    const self = this
+    $(generateImageButton).on('click', function () {
+      const myModal = new Baton.Modal({
+        title: self.t.get('generateImageFromAI'),
+        content: content,
+        size: 'md',
+        actionBtnLabel: self.t.get('generate'),
+        actionBtnCb: async function () {
+          const prompt = myModal.modalObj.find('#ai-image-description').val()
+          const aspectRatio = myModal.modalObj.find('#ai-image-aspect-ratio').val()
+          self.generateImage(field, prompt, aspectRatio, function (image) {
+            if (!image) {
+              alert(self.t.get('imageGenerationError'))
+              return
+            }
+            const imageEl = new Image()
+            imageEl.src = `data:image/png;base64,${image}`
+            $(imageEl).css({ width: '100%', marginTop: '1rem' })
+            myModal.modalObj.find('#ai-image-preview').append(imageEl)
+            myModal.modalObj.find('.btn-action').text(self.t.get('useImage'))
+            myModal.modalObj.find('.btn-action').off('click')
+            myModal.modalObj.find('.btn-action').on('click', function (evt) {
+              // base64 data
+              const data = `data:image/png;base64,${image}`
+              // create a blob object
+              const blob = self.dataURItoBlob(data)
+              // use the Blob to create a File Object
+              const imageName = myModal.modalObj.find('#ai-image-name').val()
+              const file = new File([blob], imageName ? imageName + '.png' : 'image.png', {
+                type: 'image/png',
+                lastModified: new Date().getTime(),
+              })
+              const array_images = [file]
+
+              // modify the input content to be submited
+              const input_images = document.querySelector(`#id_${fieldName}`)
+              input_images.files = new self.fileListItems(array_images)
+
+              myModal.close()
+              myModal.destroy()
+            })
+          })
+        },
+      })
+
+      myModal.open()
+    })
+  },
+  generateImage: function (field, prompt, aspectRatio, cb) {
+    const self = this
+    const csrfToken = $('input[name="csrfmiddlewaretoken"]').val()
+    // spinner
+    const overlay = $('<div />', { class: 'spinner-overlay' }).appendTo(document.body)
+    const spinner = $('<i />', { class: 'material-symbols-outlined icon-spin' }).text('progress_activity')
+    $('<div />').append($('<p />').append(spinner)).appendTo(overlay)
+
+    // retrieve necessary translations
+    const payload = {
+      id: field.attr('id'),
+      prompt: prompt,
+      format: aspectRatio,
+      model: self.config.ai.imagesModel,
+    }
+    // use api
+    return $.ajax({
+      url: this.config.ai.generateImageApiUrl,
+      method: 'POST',
+      data: JSON.stringify(payload),
+      dataType: 'json',
+      contentType: 'application/json',
+      headers: { 'X-CSRFToken': csrfToken },
+    })
+      .done(function (data) {
+        cb(data.data.base64Image)
+        overlay.remove()
+      })
+      .fail(function (err) {
+        console.log(err)
+        alert(self.t.get('imageGenerationError') + ': ' + (err.responseJSON?.data?.message || err.statusText))
+        overlay.remove()
+        return null
+      })
+  },
+  dataURItoBlob: function (dataURI) {
+    const binary = atob(dataURI.split(',')[1])
+    const array = []
+    for (let i = 0; i < binary.length; i++) {
+      array.push(binary.charCodeAt(i))
+    }
+    return new Blob([new Uint8Array(array)], { type: 'image/png' })
+  },
+  fileListItems(file_objects) {
+    const new_input = new ClipboardEvent('').clipboardData || new DataTransfer()
+    for (let i = 0, size = file_objects.length; i < size; ++i) {
+      new_input.items.add(file_objects[i])
+    }
+    return new_input.files
+  },
+  addTagSuggestions: function (fieldName, conf, appLabel, modelName) {
+    const self = this
+    const field = $(`#id_${fieldName}`)
+    if (!field.length) {
+      return
+    }
+
+    const suggestButton = $('<a />', {
+      class: 'btn btn-sm btn-primary mb-2',
+      href: 'javascript:void(0)',
+    })
+      .on('click', function () {
+        self.suggestTags(field, fieldName, conf || {}, appLabel, modelName)
+      })
+      .prepend($('<span class="material-symbols-outlined">sell</span>'))
+      .append($('<span />').text(` ${this.t.get('suggestTags')}`))
+
+    field.after($('<div />').append(suggestButton))
+  },
+  getTagSuggestionSourceFieldId: function (sourceField, conf) {
+    const languages = [
+      this.config.defaultLanguage,
+      ...(this.config.otherLanguages || []),
+    ].filter(Boolean)
+    const candidateIds = [`id_${sourceField}`]
+    languages.forEach(function (language) {
+      const languageCode = language.split('-')[0]
+      candidateIds.push(`id_${sourceField}_${languageCode}`)
+    })
+
+    for (const fieldId of [...new Set(candidateIds)]) {
+      if ($(`#${fieldId}`).length || this.editorFields.includes(fieldId)) {
+        return fieldId
+      }
+    }
+    return null
+  },
+  suggestTags: function (field, fieldName, conf, appLabel, modelName) {
+    const self = this
+    const sourceFields = conf.source_fields || []
+    const content = {}
+    sourceFields.forEach(function (sourceField) {
+      const fieldId = self.getTagSuggestionSourceFieldId(sourceField, conf)
+      if (!fieldId) {
+        return
+      }
+      const value = self.fieldText(fieldId)
+      if (value) {
+        content[sourceField] = self.editorFields.includes(fieldId) ? self.decodeHtml(value) : value
+      }
+    })
+
+    const selected = this.getSelectedTagValues(field)
+
+    const overlay = $('<div />', { class: 'spinner-overlay' }).appendTo(document.body)
+    const spinner = $('<i />', { class: 'material-symbols-outlined icon-spin' }).text('progress_activity')
+    $('<div />').append($('<p />').append(spinner)).appendTo(overlay)
+
+    $.ajax({
+      url: this.config.ai.suggestTagsApiUrl,
+      method: 'POST',
+      data: JSON.stringify({
+        id: field.attr('id'),
+        appLabel: appLabel,
+        modelName: modelName,
+        field: fieldName,
+        content: content,
+        selected: selected,
+        model: self.config.ai.tagSuggestionsModel,
+      }),
+      dataType: 'json',
+      contentType: 'application/json',
+      headers: { 'X-CSRFToken': $('input[name=csrfmiddlewaretoken]').val() },
+    })
+      .done(function (data) {
+        overlay.remove()
+        self.showTagSuggestions(field, data.data || {}, {
+          appLabel: appLabel,
+          modelName: modelName,
+          fieldName: fieldName,
+          conf: conf,
+        })
+      })
+      .fail(function (err) {
+        console.log(err)
+        overlay.remove()
+        alert(self.t.get('aiApiError') + ': ' + (err.responseJSON?.data?.message || err.statusText))
+      })
+  },
+  getSelectedTagValues: function (field) {
+    const fieldId = field.attr('id')
+    if (fieldId && /_from$/.test(fieldId)) {
+      const toId = fieldId.replace(/_from$/, '_to')
+      if (window.SelectBox?.cache?.[toId]) {
+        return window.SelectBox.cache[toId].map((item) => item.value)
+      }
+      return $(`#${toId} option`)
+        .map(function () {
+          return $(this).val()
+        })
+        .get()
+    }
+
+    const fieldValue = field.val()
+    return Array.isArray(fieldValue) ? fieldValue : fieldValue ? [fieldValue] : []
+  },
+  tagConfidenceBadge: function (confidence) {
+    if (confidence === null || confidence === undefined) {
+      return $()
+    }
+    const value = Number(confidence)
+    // green for high confidence, yellow for medium, red for low
+    const variant = value >= 0.8 ? 'bg-success' : value >= 0.5 ? 'bg-warning text-dark' : 'bg-danger'
+    return $('<span />', { class: `badge ${variant} ms-2` }).text(`${Math.round(value * 100)}%`)
+  },
+  showTagSuggestions: function (field, suggestions, context) {
+    const self = this
+    const existing = suggestions.existing || []
+    const newTags = suggestions.new || []
+    const content = $('<div />')
+
+    if (!existing.length && !newTags.length) {
+      content.append($('<p />').text(this.t.get('noTagSuggestions')))
+    }
+
+    if (existing.length) {
+      content.append($('<h6 />').text(this.t.get('existingTags')))
+      const list = $('<div />', { class: 'mb-3' }).appendTo(content)
+      existing.forEach(function (tag) {
+        const id = `baton-ai-tag-${tag.id}`
+        const row = $('<div />', { class: 'form-check' }).appendTo(list)
+        $('<input />', {
+          class: 'form-check-input',
+          type: 'checkbox',
+          id: id,
+          value: tag.id,
+          // existing tags below the confidence threshold are shown unchecked
+          checked: tag.preselected !== false,
+        })
+          .attr('data-tag-type', 'existing')
+          .data('label', tag.label)
+          .appendTo(row)
+        $('<label />', { class: 'form-check-label', for: id })
+          .text(tag.label)
+          .append(self.tagConfidenceBadge(tag.confidence))
+          .appendTo(row)
+      })
+    }
+
+    if (newTags.length) {
+      content.append($('<h6 />').text(this.t.get('newTagCandidates')))
+      const list = $('<div />', { class: 'mb-3' }).appendTo(content)
+      newTags.forEach(function (tag, index) {
+        const id = `baton-ai-new-tag-${index}`
+        const row = $('<div />', { class: 'form-check' }).appendTo(list)
+        $('<input />', {
+          class: 'form-check-input',
+          type: 'checkbox',
+          id: id,
+          value: tag.label,
+          // new candidates below the confidence threshold are shown unchecked
+          checked: tag.preselected !== false,
+        })
+          .attr('data-tag-type', 'new')
+          .appendTo(row)
+        $('<label />', { class: 'form-check-label', for: id })
+          .text(tag.label)
+          .append(self.tagConfidenceBadge(tag.confidence))
+          .appendTo(row)
+      })
+    }
+
+    const myModal = new Baton.Modal({
+      title: this.t.get('tagSuggestions'),
+      content: content,
+      size: 'md',
+      actionBtnLabel: this.t.get('useSelectedTags'),
+      actionBtnCb: function () {
+        self.applySelectedTags(field, myModal, context)
+      },
+    })
+    myModal.open()
+  },
+  applySelectedTags: function (field, modal, context) {
+    const self = this
+    const existingTags = []
+    modal.modalObj.find('input[data-tag-type=existing]:checked').each(function () {
+      existingTags.push({
+        id: $(this).val(),
+        label: $(this).data('label'),
+      })
+    })
+
+    const newLabels = []
+    modal.modalObj.find('input[data-tag-type=new]:checked').each(function () {
+      newLabels.push($(this).val())
+    })
+
+    if (newLabels.length) {
+      this.createSelectedTags(context, newLabels, function (createdTags) {
+        self.applyTagObjects(field, existingTags.concat(createdTags))
+        modal.close()
+        modal.destroy()
+      })
+    } else {
+      this.applyTagObjects(field, existingTags)
+      modal.close()
+      modal.destroy()
+    }
+  },
+  createSelectedTags: function (context, labels, cb) {
+    const self = this
+    const overlay = $('<div />', { class: 'spinner-overlay' }).appendTo(document.body)
+    const spinner = $('<i />', { class: 'material-symbols-outlined icon-spin' }).text('progress_activity')
+    $('<div />').append($('<p />').append(spinner)).appendTo(overlay)
+
+    $.ajax({
+      url: this.config.ai.createTagsApiUrl,
+      method: 'POST',
+      data: JSON.stringify({
+        appLabel: context.appLabel,
+        modelName: context.modelName,
+        field: context.fieldName,
+        labels: labels,
+      }),
+      dataType: 'json',
+      contentType: 'application/json',
+      headers: { 'X-CSRFToken': $('input[name=csrfmiddlewaretoken]').val() },
+    })
+      .done(function (data) {
+        overlay.remove()
+        cb(data.data?.tags || [])
+      })
+      .fail(function (err) {
+        console.log(err)
+        overlay.remove()
+        alert(self.t.get('aiApiError') + ': ' + (err.responseJSON?.data?.message || err.statusText))
+      })
+  },
+  applyTagObjects: function (field, tags) {
+    if (this.applyTagObjectsToSelectFilter(field, tags)) {
+      return
+    }
+    const currentValue = field.val()
+    const values = Array.isArray(currentValue) ? currentValue : currentValue ? [currentValue] : []
+    tags.forEach(function (tag) {
+      const value = tag.id
+      if (!values.includes(value)) {
+        values.push(value)
+      }
+      if (!field.find(`option[value="${value}"]`).length) {
+        field.append(new Option(tag.label, value, true, true))
+      }
+    })
+    field.val(values).trigger('change')
+  },
+  applyTagObjectsToSelectFilter: function (field, tags) {
+    const fieldId = field.attr('id')
+    if (!fieldId || !/_from$/.test(fieldId) || !window.SelectBox) {
+      return false
+    }
+
+    const fromId = fieldId
+    const toId = fieldId.replace(/_from$/, '_to')
+    if (!document.getElementById(fromId) || !document.getElementById(toId)) {
+      return false
+    }
+
+    if (!window.SelectBox.cache[fromId]) {
+      window.SelectBox.init(fromId)
+    }
+    if (!window.SelectBox.cache[toId]) {
+      window.SelectBox.init(toId)
+    }
+
+    tags.forEach(function (tag) {
+      const value = tag.id
+      if (window.SelectBox.cache_contains(toId, value)) {
+        return
+      }
+
+      const sourceItem = (window.SelectBox.cache[fromId] || []).find((item) => item.value === value)
+      window.SelectBox.add_to_cache(toId, {
+        value: value,
+        text: sourceItem ? sourceItem.text : tag.label,
+        displayed: 1,
+      })
+      if (sourceItem) {
+        window.SelectBox.delete_from_cache(fromId, value)
+      }
+    })
+
+    window.SelectBox.redisplay(fromId)
+    window.SelectBox.redisplay(toId)
+
+    const baseId = fieldId.replace(/_from$/, '')
+    if (window.SelectFilter) {
+      window.SelectFilter.refresh_icons(baseId)
+      window.SelectFilter.refresh_filtered_selects(baseId)
+      window.SelectFilter.refresh_filtered_warning(baseId)
+    }
+
+    $(`#${toId}`).trigger('change')
+    return true
+  },
+  correct: function (field, text) {
+    const self = this
+    const payload = {
+      id: field.attr('id'),
+      text,
+      language: this.getCorrectionLanguage(field.attr('id')),
+      model: self.config.ai.correctionsModel,
+    }
+
+    // spinner
+    const overlay = $('<div />', { class: 'spinner-overlay' }).appendTo(document.body)
+    const spinner = $('<i />', { class: 'material-symbols-outlined icon-spin' }).text('progress_activity')
+    $('<div />').append($('<p />').append(spinner)).appendTo(overlay)
+
+    // use api
+    $.ajax({
+      url: this.config.ai.correctApiUrl,
+      method: 'POST',
+      data: JSON.stringify(payload),
+      dataType: 'json',
+      contentType: 'application/json',
+      headers: { 'X-CSRFToken': $('input[name=csrfmiddlewaretoken]').val() },
+    })
+      .done(function (data) {
+        if (data?.data?.text.trim() === text.trim()) {
+          const checkIcon = $('<i />', {
+            class: 'material-symbols-outlined',
+          })
+            .text('check')
+            .css({ color: 'green', marginTop: '8px', marginLeft: '6px' })
+          if (!self.setEditorFieldCorrect($(field).attr('id'), checkIcon)) {
+            $(field).after(checkIcon)
+          }
+        } else if (data?.data?.text) {
+          const diff = Diff.diffChars(text, data?.data?.text)
+          // const fragment = $('<div />') // use fragment if escaping all html
+
+          const diffParts = []
+          diff.forEach((part) => {
+            // green for additions, red for deletions
+            // grey for common parts
+            // const color = part.added ? 'green' : part.removed ? 'red' : 'black'
+            // const fontWeight = part.added ? '700' : part.removed ? '700' : '400'
+            // const span = $('<span />').css({ color: color, fontWeight: fontWeight }).text(part.value)
+            // fragment.append(span)
+            diffParts.push(
+              part.added
+                ? `<span style="color: green; background: rgba(0, 255, 0, 0.2); padding: 0 3px;">${part.value}</span>`
+                : part.removed
+                  ? `<span style="color: red; background: rgba(255, 0, 0, 0.2); padding: 0 3px;">${part.value}</span>`
+                  : `${part.value}`,
+            )
+          })
+          // const fragmentHtml = fragment[0].outerHTML
+          const content = `
+<div class="row">
+<div class="col-md-4">
+<label class="block mt-2 mb-1" style="font-weight: 700">${self.t.get('Original')}</label>
+<div>${text}</div>
+</div>
+<div class="col-md-4">
+<label class="block mt-2 mb-1" style="font-weight: 700">${self.t.get('Correction')}</label>
+<div>${data.data.text}</div>
+</div>
+<div class="col-md-4">
+<label class="block mt-2 mb-1" style="font-weight: 700">${self.t.get('Diff')}</label>
+<div>${diffParts.join('')}</div>
+</div>
+</div>
+`
+          const myModal = new Baton.Modal({
+            title: self.t.get('Correction'),
+            content: content,
+            size: 'xl',
+            actionBtnLabel: self.t.get('useCorrection'),
+            actionBtnCb: function () {
+              const fieldId = $(field).attr('id')
+              if (!self.setEditorFieldValue(fieldId, data.data.text)) {
+                $(field).val(data.data.text)
+              }
+              myModal.close()
+              myModal.destroy()
+            },
+          })
+
+          myModal.open()
+        }
+        overlay.remove()
+      })
+      .fail(function (err) {
+        console.log(err)
+        overlay.remove()
+        alert(self.t.get('aiApiError') + ': ' + (err.responseJSON?.data?.message || err.statusText))
+      })
+  },
+  getCorrectionLanguage: function (fieldId) {
+    let locale = this.config.defaultLanguage
+    this.config.otherLanguages.forEach(function (lng) {
+      const re = new RegExp(`_${lng}$`)
+      if (fieldId.match(re)) {
+        locale = lng
+      }
+    })
+    return locale
+  },
+  isEnabledCorrectionField: function (field) {
+    for (const selector of this.config.ai.correctionSelectors) {
+      if ($(field).is(selector)) {
+        return true
+      }
+    }
+    return false
+  },
+  activateCorrections: function () {
+    const self = this
+    // check if form has fields that need translation
+    $('label[for]').each(function () {
+      const fieldId = $(this).attr('for')
+      const field = $(`#${fieldId}`)
+
+      if (self.editorFields.includes(fieldId) || self.isEnabledCorrectionField(field)) {
+        const icon = $('<a class="material-symbols-outlined" href="javascript:void(0)">spellcheck</a>')
+        icon.on('click', function () {
+          let text
+          if (self.editorFields.includes(fieldId)) {
+            text = self.decodeHtml(self.getEditorFieldValue(fieldId))
+          } else if (field.attr('type') === 'text' || field.prop('tagName') === 'TEXTAREA') {
+            text = $(field).val()
+          }
+          if (text) {
+            self.correct($(field), text)
+          }
+        })
+        $(this).prepend(icon)
+      }
+    })
+    $(this.config.ai.correctionSelectors.join(', ')).on('click', function (evt) {
+      if (evt.ctrlKey) {
+        const field = $(this)
+        const fieldId = field.attr('id')
+        let text
+        if (self.editorFields.includes(fieldId)) {
+          text = self.getEditorFieldValue(fieldId)
+        } else if (field.attr('type') === 'text' || field.prop('tagName') === 'TEXTAREA') {
+          text = $(field).val()
+        }
+        if (text) {
+          self.correct($(field), text)
+        }
+      }
+    })
+  },
+  // editor adapters
+  /**
+   * Register a third party editor adapter. Registered adapters are consulted
+   * before the built-in CKEditor adapter, so editors like django-editor-js can
+   * coexist with CKEditor on the same form. See `CKEditorAdapter` for the
+   * adapter contract.
+   */
+  registerEditorAdapter: function (adapter) {
+    this.editorAdapters.push(adapter)
+    return this
+  },
+  /**
+   * Adapter wrapping the legacy `*Hook` overrides, if any is defined. It is
+   * placed at the head of the chain (highest priority) so existing projects
+   * keep working unchanged, while still falling through to registered adapters
+   * and CKEditor for fields the hooks don't own.
+   */
+  getLegacyHookAdapter: function () {
+    const self = this
+    if (
+      !this.getEditorFieldsHook &&
+      !this.getEditorFieldValueHook &&
+      !this.setEditorFieldValueHook &&
+      !this.setEditorFieldCorrectHook
+    ) {
+      return null
+    }
+    return {
+      name: 'legacy-hooks',
+      getFields: function () {
+        return self.getEditorFieldsHook ? self.getEditorFieldsHook() || [] : []
+      },
+      getValue: function (fieldId) {
+        return self.getEditorFieldValueHook ? self.getEditorFieldValueHook(fieldId) : undefined
+      },
+      setValue: function (fieldId, value) {
+        return self.setEditorFieldValueHook ? self.setEditorFieldValueHook(fieldId, value) : false
+      },
+      setCorrect: function (fieldId, icon) {
+        return self.setEditorFieldCorrectHook ? self.setEditorFieldCorrectHook(fieldId, icon) : false
+      },
+    }
+  },
+  // Effective adapter chain: legacy hooks (if any) -> registered adapters -> CKEditor
+  getEditorAdapters: function () {
+    const legacy = this.getLegacyHookAdapter()
+    return [...(legacy ? [legacy] : []), ...this.editorAdapters, CKEditorAdapter]
+  },
+  /**
+   * Editor-aware text accessor: returns the textual content of a field, using
+   * the editor adapter when the field is managed by one, falling back to the
+   * raw input value otherwise. Returns '' when empty. This matters for rich
+   * editors (e.g. Editor.js) whose underlying input holds a non-empty wrapper
+   * (JSON, "null", ...) even when the editor is visually empty.
+   */
+  fieldText: function (fieldId) {
+    if (this.editorFields.includes(fieldId)) {
+      const value = this.getEditorFieldValue(fieldId)
+      return value === undefined || value === null ? '' : value
+    }
+    const el = $('#' + fieldId)
+    return el.length ? el.val() || '' : ''
+  },
+  // hooks
+  // Get editor fields, should return a list of (unique) field ids
+  getEditorFields: function () {
+    const ids = []
+    this.getEditorAdapters().forEach(function (adapter) {
+      ;(adapter.getFields() || []).forEach(function (id) {
+        ids.push(id)
+      })
+    })
+    return [...new Set(ids)]
+  },
+  // Given a field id return the field value and null or undefined if field id is not an editor field
+  getEditorFieldValue: function (fieldId) {
+    for (const adapter of this.getEditorAdapters()) {
+      const value = adapter.getValue(fieldId)
+      if (value !== undefined && value !== null) {
+        return value
+      }
+    }
+    return undefined
+  },
+  // Given a field id and a new value should set the editor field value if it exists and return true, false otherwise
+  setEditorFieldValue: function (fieldId, value) {
+    for (const adapter of this.getEditorAdapters()) {
+      if (adapter.setValue(fieldId, value)) {
+        return true
+      }
+    }
+    return false
+  },
+  // Given a field id should render the given icon to indicate the field is correct if it exists and return true, false otherwise
+  setEditorFieldCorrect: function (fieldId, icon) {
+    for (const adapter of this.getEditorAdapters()) {
+      if (adapter.setCorrect(fieldId, icon)) {
+        return true
+      }
+    }
+    return false
+  },
+}
+
+export default AI

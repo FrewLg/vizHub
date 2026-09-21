@@ -50,7 +50,8 @@ ALLOWED_HOSTS = ['*']
 # Application definition
 
 INSTALLED_APPS = [
-    'unfold',
+    # 'unfold',
+    "baton",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -72,6 +73,32 @@ UNFOLD = {
         "light": "https://irb.ephi.gov.et/files/site_setting/3a36ebf9b1124f21ee0d704e36272ec9.png",
         "dark": "https://irb.ephi.gov.et/files/site_setting/3a36ebf9b1124f21ee0d704e36272ec9.png",
     },
+}
+BATON = {
+    "SITE_HEADER": "VizHub",
+    "SITE_TITLE": "VizHub Admin",
+    "INDEX_TITLE": "Dashboard",
+    "SUPPORT_HREF": "/",
+    "COPYRIGHT": "VizHub",
+    "POWERED_BY": "Django",
+}
+BATON = {
+    "MENU": (
+        {
+            "type": "title",
+            "label": "Analytics",
+        },
+        {
+            "type": "model",
+            "name": "analytics_hub.gbdrecord",
+            "label": "GBD Data",
+        },
+        {
+            "type": "model",
+            "name": "analytics_hub.visualizationconfig",
+            "label": "Visualizations",
+        },
+    )
 }
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",

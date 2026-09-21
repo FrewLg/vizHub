@@ -19,6 +19,8 @@ from django.urls import path
 from django.urls import path, include
 
 urlpatterns = [
+    path("baton/", include("baton.urls")),
+
     path("admin/", admin.site.urls),
 path('', include('analytics_hub.urls')),
 path('accounts/', include('allauth.urls')),  # <--- Essential for social endpoints
