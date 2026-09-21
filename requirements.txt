@@ -238,7 +238,7 @@ django-unfold==0.81.0
 gunicorn==23.0.0
 mysql-connector-python==9.0.0
 django-baton==5.6.2
-
+django-jazzmin==3.0.1
 Pillow==11.3.0
 # python-3.12.8
 openpyxl==3.1.5

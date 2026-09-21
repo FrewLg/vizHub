@@ -51,7 +51,9 @@ ALLOWED_HOSTS = ['*']
 
 INSTALLED_APPS = [
     # 'unfold',
-    "baton", 
+    # "baton", 
+    "jazzmin",
+
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -99,6 +101,47 @@ BATON = {
             "label": "Visualizations",
         },
     )
+}
+JAZZMIN_SETTINGS = {
+    "site_title": "VizHub",
+    "site_header": "VizHub",
+    "site_brand": "VizHub",
+    "site_logo": None,
+
+    "welcome_sign": "Welcome to VizHub Admin",
+
+    "copyright": "VizHub",
+
+    "navigation_expanded": True,
+
+    "show_sidebar": True,
+
+    "hide_apps": [],
+
+    "icons": {
+        "auth": "fas fa-users-cog",
+        "auth.user": "fas fa-user",
+        "analytics_hub": "fas fa-chart-line",
+    },
+
+    "order_with_respect_to": [
+        "analytics_hub",
+        "auth",
+    ],
+}
+JAZZMIN_UI_TWEAKS = {
+    "theme": "darkly",
+    "dark_mode_theme": "darkly",
+
+    "navbar": "navbar-dark navbar-primary",
+
+    "sidebar": "sidebar-dark-primary",
+
+    "accent": "accent-info",
+
+    "sidebar_nav_small_text": False,
+    "sidebar_disable_expand": False,
+    "sidebar_nav_flat_style": False,
 }
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
