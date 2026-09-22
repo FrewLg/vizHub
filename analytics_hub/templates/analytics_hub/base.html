@@ -1,0 +1,351 @@
+{% load i18n %}
+{% load static %}
+{% load socialaccount %}
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}">
+<head>
+    <meta charset="UTF-8">
+    <title>Ethiopia Analytics VizHub Dashboard</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
+    <style type="text/css">
+        /* Custom header styles fixed for proper standard parsing */
+        .topbar {
+            height: 40px;
+            padding: 0;
+            font-size: 14px;
+            transition: all 0.5s;
+        }
+        .scrolled .header {
+            box-shadow: 0px 0 18px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+    <!-- Chart.js -->
+     <!-- html2canvas and jsPDF for PDF report generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 dark:text-gray-100 flex flex-col h-screen overflow-hidden transition-colors duration-200">
+
+    <!-- Top Social/Brand Bar -->
+    <div class="topbar flex items-center bg-gradient-to-r from-[#06439e] to-[#21b24b] text-white p-1">
+        <div class="container mx-auto flex justify-between items-center">
+            <div class="contact-info flex items-center space-x-5">
+                 <a href="https://twitter.com/EPHIEthiopia" class="hover:opacity-85 transition">+2412133223</a>
+                <a href="https://ephi.gov.et/about-us/departments-units/scientific-and-ethical-review-office-sero/" class="hover:opacity-85 transition">EPHI</a>
+               
+            </div>
+            <div class="social-links hidden md:flex items-center space-x-5">
+                <a href="https://www.linkedin.com/company/ethiopian-public-health-institute/posts/?feedView=all" class="hover:opacity-85 transition">LinkedIn</a>
+                <a href="https://twitter.com/EPHIEthiopia" class="hover:opacity-85 transition">Twitter</a>
+                <a href="https://ephi.gov.et/about-us/departments-units/scientific-and-ethical-review-office-sero/" class="hover:opacity-85 transition">NDMC</a>
+                <a href="https://web.facebook.com/EPHIET/?_rdc=1&amp;_rdr" class="hover:opacity-85 transition">Facebook</a>
+                <a href="https://web.facebook.com/EPHIET/?_rdc=1&amp;_rdr" class="hover:opacity-85 transition">EPHI WEB</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Utility Bar -->
+    <nav class="bg-white dark:bg-gray-800 border-b dark:border-gray-700 px-6 py-2 flex justify-between items-center z-30 shadow-sm text-xs">
+        <!-- Left: Image Logo & Brand Title -->
+        <div class="flex items-center">
+            <a href="{% url 'dashboard' %}" class="flex items-center">
+                <img src="https://irb.ephi.gov.et/files/site_setting/3a36ebf9b1124f21ee0d704e36272ec9.png" style="height:40px;padding:1px;margin-right:14px;" alt="EPHI Logo"/>
+                <span class="font-black text-gray-800 dark:text-white text-sm tracking-wide">Viz<span class="text-emerald-600 dark:text-emerald-400">Hub</span></span>
+            </a>
+            <span class="text-gray-300 dark:text-gray-600 mx-3">|</span>
+            <span class="text-gray-500 dark:text-gray-400 font-medium">{% trans "Health Data Visualization" %}</span>
+        </div>
+
+        <!-- Right: Utility Controls (Language, Theme, Authentication) -->
+        <div class="flex items-center space-x-4">
+            
+            <!-- Language Toggle -->
+            {% get_current_language as CURRENT_LANG %}
+            <div class="flex items-center space-x-1 bg-gray-100 dark:bg-gray-700 p-1 rounded">
+                <form action="{% url 'set_language' %}" method="POST" class="inline flex items-center space-x-1">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <button type="submit" name="language" value="en" class="px-2 py-0.5 rounded {% if CURRENT_LANG == 'en' %}bg-white dark:bg-gray-600 font-bold shadow-xs{% else %}text-gray-600 dark:text-gray-300{% endif %} transition">EN</button>
+                    <button type="submit" name="language" value="am" class="px-2 py-0.5 rounded {% if CURRENT_LANG == 'am' %}bg-white dark:bg-gray-600 font-bold shadow-xs{% else %}text-gray-600 dark:text-gray-300{% endif %} transition">አማ</button>
+                </form>
+            </div>
+
+            <!-- Dark/Light Theme Toggle -->
+            <button onclick="toggleTheme()" class="p-1.5 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition" title="Toggle Theme">
+                <span id="theme-icon">🌙</span>
+            </button>
+
+            <!-- Authentication Section -->
+            <div class="flex items-center space-x-3 border-l pl-3 dark:border-gray-600">
+                {% if user.is_authenticated %}
+                    <span class="font-semibold text-gray-700 dark:text-gray-200">{{ user.email|default:user.username }}</span>
+                    <form method="POST" action="{% url 'account_logout' %}">
+                        {% csrf_token %}
+                        <button type="submit" class="bg-gray-200 dark:bg-gray-700 hover:bg-red-600 hover:text-white dark:hover:bg-red-600 text-gray-700 dark:text-gray-300 px-2.5 py-1 rounded transition font-medium">Sign Out</button>
+                    </form>
+                {% else %}
+                    <a href="{% provider_login_url 'google' %}" class="bg-white dark:bg-gray-700 border dark:border-gray-600 text-gray-800 dark:text-gray-200 px-3 py-1.5 rounded font-semibold hover:bg-gray-50 dark:hover:bg-gray-600 transition flex items-center space-x-1.5 shadow-xs">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-google" viewBox="0 0 16 16">
+                            <path d="M15.545 6.558a9.42 9.42 0 0 1 .139 1.626c0 2.434-.87 4.492-2.384 5.885h.002C11.978 15.292 10.158 16 8 16A8 8 0 1 1 8 0a7.689 7.689 0 0 1 5.352 2.082l-2.284 2.284A4.347 4.347 0 0 0 8 3.166c-2.087 0-3.86 1.408-4.492 3.304a4.792 4.792 0 0 0 0 3.063h.003c.632 1.896 2.405 3.304 4.492 3.304 1.745 0 3.232-.977 3.99-2.384h-3.99v-3.166h7.545z"/>
+                        </svg>
+                        <span>Sign in with Google</span>
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main App Container (Sidebar + Workspace) -->
+    <div class="flex flex-1 overflow-hidden">
+
+        <!-- Faceted Search Sidebar -->
+        <aside id="sidebar" class="w-96 bg-white dark:bg-gray-800 border-r dark:border-gray-700 flex flex-col transition-all duration-300 z-20 shadow-lg">
+            <div class="p-4 border-b dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50">
+                <h2 class="font-bold text-sm text-gray-800 dark:text-gray-200 uppercase tracking-wider">{% trans "Advanced Search" %}</h2>
+                <button onclick="toggleFacets()" class="text-gray-500 hover:text-black dark:hover:text-white font-bold">✕</button>
+            </div>
+            
+            <form method="GET" id="filter-form" class="p-4 overflow-y-auto flex-1 space-y-4 text-xs">
+
+    <!-- Geography Level Selector -->
+    <div>
+        <label class="font-semibold block mb-1 text-gray-700 dark:text-gray-300">Geography Level</label>
+        <select name="geography" class="w-full border dark:border-gray-700 bg-white dark:bg-gray-900 p-1.5 rounded">
+            <option value="national" {% if selected_geography == 'national' %}selected{% endif %}>National</option>
+            <option value="regional" {% if selected_geography == 'regional' %}selected{% endif %}>Regional</option>
+            <option value="zone" {% if selected_geography == 'zone' %}selected{% endif %}>Zone</option>
+            <option value="woreda" {% if selected_geography == 'woreda' %}selected{% endif %}>Woreda</option>
+        </select>
+    </div>
+
+    <!-- Topic Selector -->
+    <div>
+        <label class="font-semibold block mb-1 text-gray-700 dark:text-gray-300">Analysis Topic</label>
+        <select name="topic" class="w-full border dark:border-gray-700 bg-white dark:bg-gray-900 p-1.5 rounded">
+            <option value="">-- All Topics --</option>
+            {% for topic in topics %}
+            <option value="{{ topic.id }}" {% if selected_topic|slugify == topic.id|slugify %}selected{% endif %}>{{ topic.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <!-- Indicator Selector -->
+    <div>
+        <label class="font-semibold block mb-1 text-gray-700 dark:text-gray-300">Indicator</label>
+        <select name="indicator" class="w-full border dark:border-gray-700 bg-white dark:bg-gray-900 p-1.5 rounded">
+            <option value="">-- All Indicators --</option>
+            {% for ind in indicators %}
+            <option value="{{ ind.id }}" {% if selected_indicator|slugify == ind.id|slugify %}selected{% endif %}>{{ ind.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <!-- Year Selector -->
+    <div>
+        <label class="font-semibold block mb-1 text-gray-700 dark:text-gray-300">Year</label>
+        <select name="year" class="w-full border dark:border-gray-700 bg-white dark:bg-gray-900 p-1.5 rounded">
+            <option value="">-- All Years --</option>
+            {% for y in years %}
+            <option value="{{ y }}" {% if selected_year|slugify == y|slugify %}selected{% endif %}>{{ y }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <!-- Location Selector -->
+    <div>
+        <label class="font-semibold block mb-1 text-gray-700 dark:text-gray-300">Location</label>
+        <select name="location" class="w-full border dark:border-gray-700 bg-white dark:bg-gray-900 p-1.5 rounded">
+            <option value="">-- All Locations --</option>
+            {% for loc in locations %}
+            <option value="{{ loc.id }}" {% if selected_location|slugify == loc.id|slugify %}selected{% endif %}>{{ loc.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <!-- Cause Selector (Optional/Conditional) -->
+    <div>
+        <label class="font-semibold block mb-1 text-gray-700 dark:text-gray-300">Disease </label>
+        <select name="cause" class="w-full border dark:border-gray-700 bg-white dark:bg-gray-900 p-1.5 rounded">
+            <option value="">-- All Causes --</option>
+            {% for cause in causes %}
+            <option value="{{ cause.id }}" {% if selected_cause|slugify == cause.id|slugify %}selected{% endif %}>{{ cause.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+   
+ 
+    <!-- Sex Selector -->
+    <div>
+        <label class="font-semibold block mb-1 text-gray-700 dark:text-gray-300">Sex</label>
+        <select name="sex" class="w-full border dark:border-gray-700 bg-white dark:bg-gray-900 p-1.5 rounded">
+            <option value="">-- Both / All --</option>
+            {% for s in sexes %}
+            <option value="{{ s.id }}" {% if selected_sex|slugify == s.id|slugify %}selected{% endif %}>{{ s.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    
+
+    <!-- Actions: Apply & Reset -->
+    <div class="grid grid-cols-2 gap-2 pt-2">
+        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded font-semibold transition shadow">Apply Filters</button>
+        <a href="{% url 'dashboard' %}" class="w-full text-center bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 py-2 rounded font-semibold transition block">Reset</a>
+    </div>
+</form>
+        </aside>
+
+        <!-- Main Workspace -->
+        <main class="flex-1 flex flex-col h-full overflow-hidden">
+            
+            <header class="bg-white dark:bg-gray-800 border-b dark:border-gray-700 px-6 py-3 flex justify-between items-center shadow-xs">
+                <button onclick="toggleFacets()" class="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 border dark:border-gray-600 px-3 py-1.5 rounded text-xs font-medium transition">=</button>
+                
+                <!-- Upload Excel Button Action -->
+                <button onclick="toggleUploadModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-1.5 rounded font-semibold text-xs transition shadow-xs">{% trans "Upload" %}</button>
+            </header>
+
+            
+
+      <div id="capture-area"  class="flex-1 overflow-y-auto p-6 space-y-6 bg-gray-50 dark:bg-gray-900">
+
+     {% block workspace %}
+     {% endblock %}
+
+ 
+</div>
+        </main>
+    </div>
+
+    <!-- Excel Upload Modal -->
+    <div id="uploadModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center">
+        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 w-96 shadow-xl border dark:border-gray-700 relative">
+            <div class="flex justify-between items-center mb-4 border-b dark:border-gray-700 pb-2">
+                <h3 class="font-bold text-gray-800 dark:text-gray-100 text-sm">Upload Dataset (.xlsx)</h3>
+                <button onclick="toggleUploadModal()" class="text-gray-400 hover:text-black dark:hover:text-white font-bold">✕</button>
+            </div>
+            
+            <form method="POST" enctype="multipart/form-data" class="space-y-4">
+                {% csrf_token %}
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1">Choose Excel Sheet</label>
+                    {{ upload_form.excel_file }}
+                    <p class="text-[10px] text-gray-400 mt-1">Expected schema: topic, date, disease, age_group, facility, location, metric_value</p>
+                </div>
+                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded font-semibold text-xs transition">Import Dataset</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function toggleFacets() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('hidden');
+        }
+
+        function toggleUploadModal() {
+            const modal = document.getElementById('uploadModal');
+            modal.classList.toggle('hidden');
+        }
+
+        function resetFilters() {
+            window.location.href = window.location.pathname;
+        }
+
+        // Theme Toggle Script
+        function toggleTheme() {
+            const html = document.documentElement;
+            const icon = document.getElementById('theme-icon');
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+                icon.textContent = '🌙';
+            } else {
+                html.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+                icon.textContent = '☀️';
+            }
+        }
+
+        if (localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+            document.getElementById('theme-icon').textContent = '☀️';
+        }
+
+ 
+        function downloadChart(canvasId) {
+            const canvas = document.getElementById(canvasId);
+            const image = canvas.toDataURL("image/png");
+            const a = document.createElement('a');
+            a.href = image;
+            a.download = canvasId + '-export.png';
+            a.click();
+        }
+
+        // Download Table as CSV File
+        function downloadTableCSV() {
+            const table = document.getElementById('records-table');
+            let csv = [];
+            for (let i = 0; i < table.rows.length; i++) {
+                let row = [], cols = table.rows[i].querySelectorAll("td, th");
+                for (let j = 0; j < cols.length; j++) 
+                    row.push('"' + cols[j].innerText.replace(/"/g, '""') + '"');
+                csv.push(row.join(","));
+            }
+            let csvFile = new Blob([csv.join("\n")], { type: "text/csv" });
+            let downloadLink = document.createElement("a");
+            downloadLink.download = "filtered_analytics_table.csv";
+            downloadLink.href = window.URL.createObjectURL(csvFile);
+            downloadLink.style.display = "none";
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+        }
+
+        async function exportPDF() {
+            const { jsPDF } = window.jspdf;
+            const capture = document.getElementById('capture-area');
+            const canvas = await html2canvas(capture, { scale: 2 });
+            const imgData = canvas.toDataURL('image/png');
+            
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const imgWidth = 210;
+            const pageHeight = 295;
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            let heightLeft = imgHeight;
+            let position = 0;
+
+            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+            heightLeft -= pageHeight;
+
+            while (heightLeft >= 0) {
+                position = heightLeft - imgHeight;
+                pdf.addPage();
+                pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
+            }
+            pdf.save('ethiopia-analytics-report.pdf');
+        }
+ 
+ 
+ </script>
+ 
+<script>
+
+// {% static 'analytics_hub/js/sidebar_filters.js' %}  
+</script>
+
+</body>
+</html>
+
+
+
+
+  

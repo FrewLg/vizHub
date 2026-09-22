@@ -1,5 +1,4 @@
 import json
-from django.db.models import Sum
 from django.shortcuts import render, redirect
 from django.contrib import messages
 #from .models import GBDRecord
@@ -15,13 +14,10 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 # from .models import GBDRecord
 from .services.chart_builder import build_chart_data
-
-# views.py
  
-
 from django.contrib import messages
 from django.db.models import Avg, Sum, Count, Max
- 
+
 from .models import (
     Topic,
     Indicator,
@@ -36,13 +32,114 @@ from .models import (
 
  
  
-from django.views.decorators.csrf import csrf_exempt
-from .models import Observation, Topic, Indicator, Location, Sex, Cause, FacilityCategory
-from .utils import process_excel_upload
 from .forms import ExcelUploadForm  
 
+ 
 
+from django.views.generic import TemplateView
+ 
 
+class ObservationBarChartView(TemplateView):
+    template_name = "analytics_hub/charts/bar_chart.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        indicator_name = "All Indicators"
+
+        # 1. Capture all sidebar GET parameters
+        geography = self.request.GET.get("geography", "regional")
+        topic_id = self.request.GET.get("topic")
+        indicator_id = self.request.GET.get("indicator")
+        year = self.request.GET.get("year")
+        location_id = self.request.GET.get("location")
+        cause_id = self.request.GET.get("cause")
+        sex_id = self.request.GET.get("sex")
+
+        if indicator_id:
+            try:
+                indicator = Indicator.objects.get(pk=indicator_id)
+                indicator_name = indicator.name
+            except Indicator.DoesNotExist:
+                pass
+
+        context["indicator_name"] = indicator_name
+        
+        # 2. Base Queryset for Observations
+        queryset = Observation.objects.select_related("location", "indicator")
+
+        # 3. Apply Geography Level Filter safely (adjust field values to match your DB)
+        if geography == "national":
+            queryset = queryset.filter(location__level__iexact="country")
+        elif geography == "regional":
+            queryset = queryset.filter(location__level__in=["regional", "region", "Regional"])
+        elif geography == "zone":
+            queryset = queryset.filter(location__level__iexact="zone")
+        elif geography == "woreda":
+            queryset = queryset.filter(location__level__iexact="woreda")
+
+        # 4. Apply Faceted Search Filters
+        if topic_id:
+            queryset = queryset.filter(indicator__topic_id=topic_id)
+
+        if indicator_id:
+            queryset = queryset.filter(indicator_id=indicator_id)
+
+        if year:
+            queryset = queryset.filter(year=year)
+
+        if location_id:
+            queryset = queryset.filter(location_id=location_id)
+
+        if cause_id:
+            queryset = queryset.filter(cause_id=cause_id)
+
+        if sex_id:
+            queryset = queryset.filter(sex_id=sex_id)
+
+        # 5. Aggregate data grouped by location name
+        data = (
+            queryset
+            .values("location__name")
+            .annotate(total=Sum("value"))
+            .order_by("-total")
+        )
+
+        labels = [row["location__name"] for row in data if row["location__name"]]
+        values = [float(row["total"]) if row["total"] is not None else 0.0 for row in data if row["location__name"]]
+
+        context["chart_labels"] = labels
+        context["chart_values"] = values
+
+        context["data"] = [
+            {
+                "label": row["location__name"],
+                "value": float(row["total"]) if row["total"] is not None else 0.0
+            }
+            for row in data if row["location__name"]
+        ]
+
+        context["show_map"] = True
+
+        # ==========================================
+        # CRITICAL: Populate Sidebar Dropdowns for base.html
+        # ==========================================
+        context["topics"] = Topic.objects.all() if 'Topic' in globals() else []
+        context["indicators"] = Indicator.objects.all()
+        context["years"] = Observation.objects.values_list('year', flat=True).distinct().order_by('-year')
+        context["locations"] = Location.objects.all()
+        context["causes"] = Cause.objects.all() if 'Cause' in globals() else []
+        context["sexes"] = Sex.objects.all() if 'Sex' in globals() else []
+
+        # Preserve selected form states in the sidebar dropdowns
+        context["selected_geography"] = geography
+        context["selected_topic"] = topic_id
+        context["selected_indicator"] = indicator_id
+        context["selected_year"] = year
+        context["selected_location"] = location_id
+        context["selected_cause"] = cause_id
+        context["selected_sex"] = sex_id
+
+        return context
 def dashboard_view(request):
     if request.method == "POST" and "excel_file" in request.FILES:
         form = ExcelUploadForm(request.POST, request.FILES)
@@ -86,7 +183,6 @@ def dashboard_view(request):
                     Indicator.objects
                     .get(pk=indicator_id)
                 )
-                # Explicitly query VisualizationConfig instead of relying on reverse attribute name
                 viz_config = VisualizationConfig.objects.filter(indicator=selected_indicator).first()
 
                 if viz_config:
@@ -94,7 +190,6 @@ def dashboard_view(request):
 
             except Indicator.DoesNotExist:
                 pass
-    # 1. Topic and indicator filters first
     if topic_id:
         queryset = queryset.filter(
             indicator__topic_id=topic_id
@@ -116,14 +211,14 @@ def dashboard_view(request):
                 "region"
             ]
         )
-    elif geography == "zone":
-        queryset = queryset.filter(
-            location__level__iexact="zone"
-        )
-    elif geography == "woreda":
-        queryset = queryset.filter(
-            location__level__iexact="woreda"
-        ) 
+    # elif geography == "zone":
+    #     queryset = queryset.filter(
+    #         location__level__iexact="zone"
+    #     )
+    # elif geography == "woreda":
+    #     queryset = queryset.filter(
+    #         location__level__iexact="woreda"
+    #     ) 
     if year:
         queryset = queryset.filter(year=year)
 
@@ -153,14 +248,12 @@ def dashboard_view(request):
     chart_data = {}
 
     if selected_indicator:
-        # 1. Try to fetch the configured visualization settings
         viz_config = VisualizationConfig.objects.filter(indicator=selected_indicator).first()
         
-        # 2. If no config exists in the database yet, provide a safe fallback config object
         if not viz_config:
             class DefaultConfig:
                 chart_type = selected_indicator.default_chart_type or "line"
-                x_axis = "year"  # Default fallback grouping dimension
+                x_axis = "year"   
                 indicator = selected_indicator
             viz_config = DefaultConfig()
 

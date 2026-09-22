@@ -1,0 +1,146 @@
+  
+{% extends "analytics_hub/viz_base.html" %}
+
+{% block viz_title %}
+Observation by Location
+{% endblock %}
+
+{% block chart_content %}
+
+<div class="bg-white dark:bg-gray-800 p-4 rounded">
+    <div style="height:500px;">
+        <div class="alert alert-info">
+    Indicator: <strong>{{ indicator_name }}</strong><br>
+    <!-- Year: {{ selected_year }} -->
+</div>
+
+        <canvas id="barChart"></canvas>
+    </div>
+</div>
+
+{{ chart_labels|json_script:"chart-labels" }}
+{{ chart_values|json_script:"chart-values" }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js" ></script> 
+ 
+
+<script>
+
+document.addEventListener("DOMContentLoaded", function () {
+
+    const labels = JSON.parse(
+        document.getElementById("chart-labels").textContent
+    );
+
+    const values = JSON.parse(
+        document.getElementById("chart-values").textContent
+    );
+
+    const ctx = document.getElementById("barChart");
+
+    new Chart(ctx, {
+        type: "bar",
+
+        data: {
+        labels: {{ chart_labels|safe }},
+            datasets: [{
+            label: '{{ indicator_name }}',
+            data: {{ chart_values|safe }},
+                backgroundColor: [
+                    "rgba(59, 130, 246, 0.7)"
+                ],
+
+                borderColor: [
+                    "rgba(59, 130, 246, 1)"
+                ],
+
+                borderWidth: 1
+            }]
+        },
+
+        options: {
+
+            responsive: true,
+
+            maintainAspectRatio: false,
+
+            plugins: {
+                legend: {
+                    display: true
+                },
+                   title: {
+            display: true,
+            text: '{{ indicator_name }} by Location'
+        }
+            },
+
+            scales: {
+
+                x: {
+                    ticks: {
+                        maxRotation: 45,
+                        minRotation: 45
+                    }
+                },
+
+                y: {
+                    beginAtZero: true,
+
+                    title: {
+                        display: true,
+                        text: "Value"
+                    }
+                }
+
+            }
+
+        }
+
+    });
+
+});
+
+</script>
+
+{% endblock %}
+
+{% block table_content %}
+
+<div class="overflow-x-auto">
+    <table class="min-w-full">
+
+        <thead>
+            <tr>
+                <th class="p-2 text-left">Location</th>
+                <th class="p-2 text-right">Value</th>
+            </tr>
+        </thead>
+
+        <tbody>
+
+        {% for row in data %}
+            <tr class="border-t">
+                <td class="p-2">
+                    {{ row.label }}
+                </td>
+
+                <td class="p-2 text-right">
+                    {{ row.value }}
+                </td>
+            </tr>
+        {% endfor %}
+
+        </tbody>
+
+    </table>
+</div>
+
+{% endblock %}
+
+{% block map_content %}
+
+<div
+    id="map"
+    class="h-[600px] rounded border">
+</div>
+
+{% endblock %}

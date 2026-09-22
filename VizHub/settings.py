@@ -51,50 +51,135 @@ ALLOWED_HOSTS = ['*']
 # Application definition
 
 INSTALLED_APPS = [
-'unfold',
- "django.contrib.admin",
+    'unfold',
+    # "baton", 
+    # "jazzmin",
+
+    "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-'allauth',
+    'allauth',
     'allauth.account',
     'allauth.socialaccount',
-     
     'allauth.socialaccount.providers.google',
-'analytics_hub',   
+    'analytics_hub',  
 ]
 
+# UNFOLD = {
+#     "SITE_TITLE": "VizHub Admin",
+#     "SITE_HEADER": "EPHI Admin",
+#     "SITE_URL": "/",
+#     "SITE_LOGO": {
+#         "light": "https://irb.ephi.gov.et/files/site_setting/3a36ebf9b1124f21ee0d704e36272ec9.png",
+#         "dark": "https://irb.ephi.gov.et/files/site_setting/3a36ebf9b1124f21ee0d704e36272ec9.png",
+#     },
+# }
 UNFOLD = {
-    "SITE_TITLE": "VizHub Admin",
-    "SITE_HEADER": "EPHI Admin",
+    "SITE_TITLE": "VizHub",
+    "SITE_HEADER": "VizHub Analytics",
+    "SITE_SUBHEADER": "Data Insights & Visualization",
     "SITE_URL": "/",
-    "SITE_SUBHEADER": "Ethiopian Public Health Institute",
-    # Customizing the color palette
-    "COLORS": {
-        "primary": {
-            "50": "240 253 244",   # Lightest green tint
-            "100": "220 252 231",
-            "200": "187 247 208",
-            "300": "134 239 172",
-            "400": "74 222 128",
-            "500": "34 197 94",    # Main brand primary color (e.g., public health green)
-            "600": "22 163 74",
-            "750": "21 128 61",
-            "800": "22 101 52",
-            "900": "20 83 45",
-            "950": "5 46 22",
-        },
+
+    "SITE_ICON": {
+        "light": "/static/images/logo.png",
+        "dark": "/static/images/logo.png",
     },
-    "SIDEBAR": {
-        "show_search": True,
-        # "show_all_applications": False,
-    },
+
     "SITE_LOGO": {
         "light": "https://irb.ephi.gov.et/files/site_setting/3a36ebf9b1124f21ee0d704e36272ec9.png",
         "dark": "https://irb.ephi.gov.et/files/site_setting/3a36ebf9b1124f21ee0d704e36272ec9.png",
     },
+
+    "SHOW_HISTORY": True,
+    "SHOW_VIEW_ON_SITE": False,
+
+    "ENVIRONMENT": "analytics_hub.admin.environment_callback",
+
+    "COLORS": {
+        "primary": {
+            "50": "240 249 255",
+            "100": "224 242 254",
+            "200": "186 230 253",
+            "300": "125 211 252",
+            "400": "56 189 248",
+            "500": "14 165 233",
+            "600": "2 132 199",
+            "700": "3 105 161",
+            "800": "7 89 133",
+            "900": "12 74 110",
+        },
+    },
+}
+
+BATON = {
+    "SITE_HEADER": "VizHub",
+    "SITE_TITLE": "VizHub Admin",
+    "INDEX_TITLE": "Dashboard",
+    "SUPPORT_HREF": "/",
+    "COPYRIGHT": "VizHub",
+    "POWERED_BY": "Django",
+}
+BATON = {
+    "MENU": (
+        {
+            "type": "title",
+            "label": "Analytics",
+        },
+        {
+            "type": "model",
+            "name": "analytics_hub.gbdrecord",
+            "label": "GBD Data",
+        },
+        {
+            "type": "model",
+            "name": "analytics_hub.visualizationconfig",
+            "label": "Visualizations",
+        },
+    )
+}
+JAZZMIN_SETTINGS = {
+    "site_title": "VizHub",
+    "site_header": "VizHub",
+    "site_brand": "VizHub",
+    "site_logo": None,
+
+    "welcome_sign": "Welcome to VizHub Admin",
+
+    "copyright": "VizHub",
+
+    "navigation_expanded": True,
+
+    "show_sidebar": True,
+
+    "hide_apps": [],
+
+    "icons": {
+        "auth": "fas fa-users-cog",
+        "auth.user": "fas fa-user",
+        "analytics_hub": "fas fa-chart-line",
+    },
+
+    "order_with_respect_to": [
+        "analytics_hub",
+        "auth",
+    ],
+}
+JAZZMIN_UI_TWEAKS = {
+    "theme": "darkly",
+    "dark_mode_theme": "darkly",
+
+    "navbar": "navbar-dark navbar-primary",
+
+    "sidebar": "sidebar-dark-primary",
+
+    "accent": "accent-info",
+
+    "sidebar_nav_small_text": False,
+    "sidebar_disable_expand": False,
+    "sidebar_nav_flat_style": False,
 }
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -145,28 +230,33 @@ WSGI_APPLICATION = "VizHub.wsgi.application"
 
 
 # Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
+
+
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "db.sqlite3",
+    }
+}
+
+
+
+from decouple import config
 
 # DATABASES = {
-#     "default": {
-#         "ENGINE": "django.db.backends.sqlite3",
-#         "NAME": BASE_DIR / "db.sqlite3",
+#     'default': {
+#         'ENGINE': 'django.db.backends.mysql',
+#         'NAME': config('DB_NAME'),
+#         'USER': config('DB_USER'),
+#         'PASSWORD': config('DB_PASSWORD'),
+#         'HOST': config('DB_HOST'),
+#         'PORT': config('DB_PORT'),
 #     }
 # }
 
- 
+# Password validation
+# https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': config('DB_NAME'),
-        'USER': config('DB_USER'),
-        'PASSWORD': config('DB_PASSWORD'),
-        'HOST': config('DB_HOST'),
-        'PORT': config('DB_PORT'),
-    }
-}
- 
 AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",

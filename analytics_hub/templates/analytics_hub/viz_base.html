@@ -1,0 +1,134 @@
+{% extends "analytics_hub/base.html" %}
+{% load i18n %}
+
+{% block workspace %}
+
+<div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border dark:border-gray-700">
+
+    <div class="flex justify-between items-center mb-4">
+        <div>
+            <h2 class="font-bold text-lg">
+                {% block viz_title %}
+                    Visualization
+                {% endblock %}
+            </h2>
+
+            <p class="text-xs text-gray-500 dark:text-gray-400">
+                {% block viz_description %}
+                Interactive data visualization
+                {% endblock %}
+            </p>
+        </div>
+
+        {% block viz_actions %}
+        {% endblock %}
+    </div>
+
+    <!-- Tabs -->
+
+    <div class="border-b border-gray-200 dark:border-gray-700">
+        <nav class="flex space-x-6">
+
+            <button
+                class="viz-tab active py-2 border-b-2 border-blue-600"
+                data-target="chart-panel">
+                 Chart
+            </button>
+
+            <button
+                class="viz-tab py-2"
+                data-target="table-panel">
+                 Table
+            </button>
+
+            {% if show_map %}
+            <button
+                class="viz-tab py-2"
+                data-target="map-panel">
+                Map
+            </button>
+            {% endif %}
+
+        </nav>
+    </div>
+
+    <!-- Chart -->
+
+    <div
+        id="chart-panel"
+        class="viz-panel pt-4">
+
+        {% block chart_content %}
+        {% endblock %}
+
+    </div>
+
+    <!-- Table -->
+
+    <div
+        id="table-panel"
+        class="viz-panel hidden pt-4">
+
+        {% block table_content %}
+        {% endblock %}
+
+    </div>
+
+    <!-- Map -->
+
+    {% if show_map %}
+    <div
+        id="map-panel"
+        class="viz-panel hidden pt-4">
+
+        {% block map_content %}
+        {% endblock %}
+
+    </div>
+    {% endif %}
+
+</div>
+
+<script>
+
+document.addEventListener('DOMContentLoaded', () => {
+
+    const tabs = document.querySelectorAll('.viz-tab');
+
+    tabs.forEach(tab => {
+
+        tab.addEventListener('click', () => {
+
+            document
+                .querySelectorAll('.viz-panel')
+                .forEach(panel => {
+                    panel.classList.add('hidden');
+                });
+
+            document
+                .querySelectorAll('.viz-tab')
+                .forEach(btn => {
+                    btn.classList.remove(
+                        'border-blue-600',
+                        'text-blue-600'
+                    );
+                });
+
+            tab.classList.add(
+                'border-blue-600',
+                'text-blue-600'
+            );
+
+            document
+                .getElementById(tab.dataset.target)
+                .classList.remove('hidden');
+
+        });
+
+    });
+
+});
+
+</script>
+
+{% endblock %}

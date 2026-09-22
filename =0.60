@@ -1,0 +1,4 @@
+Requirement already satisfied: django-unfold in /usr/local/python/3.14.2/lib/python3.14/site-packages (0.107.0)
+Requirement already satisfied: django>=5.2 in /usr/local/python/3.14.2/lib/python3.14/site-packages (from django-unfold) (5.2.6)
+Requirement already satisfied: asgiref>=3.8.1 in /usr/local/python/3.14.2/lib/python3.14/site-packages (from django>=5.2->django-unfold) (3.12.1)
+Requirement already satisfied: sqlparse>=0.3.1 in /usr/local/python/3.14.2/lib/python3.14/site-packages (from django>=5.2->django-unfold) (0.6.0)

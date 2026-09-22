@@ -237,65 +237,6 @@
 <!--  -->
 
 
-<script id="backend-chart-data" type="application/json">
-
-{{ chart_data|json_script:"backend-chart-data" }}
-</script>
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-    document.addEventListener("DOMContentLoaded", function () {
-        const scriptElement = document.getElementById('backend-chart-data');
-        const canvasElement = document.getElementById('vizHubMainChart');
-
-        if (!scriptElement || !canvasElement) return;
-
-        let rawChartData;
-        try {
-            rawChartData = JSON.parse(scriptElement.textContent);
-        } catch (e) {
-            console.error("Failed to parse chart data JSON:", e);
-            return;
-        }
-
-        // Safety check to ensure labels and datasets are present
-        if (!rawChartData || !rawChartData.labels || rawChartData.labels.length === 0) {
-            console.warn("Chart data is empty.");
-            return;
-        }
-
-        const ctx = canvasElement.getContext('2d');
-
-        // Render Chart.js line/bar chart using your JSON payload directly
-        new Chart(ctx, {
-            type: rawChartData.type || 'pie', // Defaults to line if type is omitted
-            data: {
-                labels: rawChartData.labels,
-                datasets: rawChartData.datasets.map(ds => ({
-                    label: ds.label || 'Value',
-                    data: ds.data,
-                    backgroundColor: 'rgba(27, 67, 50, 0.2)',
-                    borderColor: 'rgba(27, 67, 50, 1)',
-                    borderWidth: 2,
-                    tension: 0.1,
-                    fill: true
-                }))
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true
-                    }
-                }
-            }
-        });
-    });
-</script>
- 
-                <!-- </div> -->
-
                 <!-- Filtered Data Table Section -->
                 <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border dark:border-gray-700">
                     <div class="flex justify-between items-center mb-3">
@@ -414,11 +355,7 @@
             document.getElementById('theme-icon').textContent = '☀️';
         }
 
-       
-
-      
-     
-
+ 
         function downloadChart(canvasId) {
             const canvas = document.getElementById(canvasId);
             const image = canvas.toDataURL("image/png");

@@ -18,7 +18,10 @@ from .models import (
     Analysis,
     FilterDefinition,
 )
-
+from django.shortcuts import   redirect
+from django.urls import reverse
+def environment_callback(request):
+    return ["Production", "success"]
 
 @admin.register(Topic)
 class TopicAdmin(admin.ModelAdmin):
@@ -128,6 +131,17 @@ class ObservationAdmin(admin.ModelAdmin):
             "classes": ("collapse",)
         }),
     )
+    actions_list = ["add_observation"]
+
+    def add_observation(self, request):
+        return redirect(
+            reverse(
+                f"admin:{self.model._meta.app_label}_{self.model._meta.model_name}_add"
+            )
+        )
+
+    add_observation.short_description = "Add New Observation"
+    list_per_page = 50
 
 
  
