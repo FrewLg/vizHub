@@ -15,8 +15,9 @@ import os
 from dotenv import load_dotenv
 
 import environ
+from decouple import config
 
-# Call it like this:
+
 load_dotenv()
 
  
@@ -62,13 +63,34 @@ INSTALLED_APPS = [
     'allauth.socialaccount',
      
     'allauth.socialaccount.providers.google',
-'analytics_hub',  # Your app
+'analytics_hub',   
 ]
 
 UNFOLD = {
     "SITE_TITLE": "VizHub Admin",
     "SITE_HEADER": "EPHI Admin",
     "SITE_URL": "/",
+    "SITE_SUBHEADER": "Ethiopian Public Health Institute",
+    # Customizing the color palette
+    "COLORS": {
+        "primary": {
+            "50": "240 253 244",   # Lightest green tint
+            "100": "220 252 231",
+            "200": "187 247 208",
+            "300": "134 239 172",
+            "400": "74 222 128",
+            "500": "34 197 94",    # Main brand primary color (e.g., public health green)
+            "600": "22 163 74",
+            "750": "21 128 61",
+            "800": "22 101 52",
+            "900": "20 83 45",
+            "950": "5 46 22",
+        },
+    },
+    "SIDEBAR": {
+        "show_search": True,
+        # "show_all_applications": False,
+    },
     "SITE_LOGO": {
         "light": "https://irb.ephi.gov.et/files/site_setting/3a36ebf9b1124f21ee0d704e36272ec9.png",
         "dark": "https://irb.ephi.gov.et/files/site_setting/3a36ebf9b1124f21ee0d704e36272ec9.png",
@@ -132,20 +154,7 @@ WSGI_APPLICATION = "VizHub.wsgi.application"
 #     }
 # }
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.mysql',
-#         'NAME': 'vizhub10',
-#         'USER': 'root',
-#         'PASSWORD': 'r00tme',
-#         'HOST': 'localhost',
-#         'PORT': '3306',
-#         'OPTIONS': {
-#             'charset': 'utf8mb4',
-#         },
-#     }
-# }
-from decouple import config
+ 
 
 DATABASES = {
     'default': {
@@ -157,10 +166,7 @@ DATABASES = {
         'PORT': config('DB_PORT'),
     }
 }
-
-# Password validation
-# https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
-
+ 
 AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
@@ -176,9 +182,7 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
-# Internationalization
-# https://docs.djangoproject.com/en/5.2/topics/i18n/
+ 
 
 
 TIME_ZONE = "UTC"
@@ -200,15 +204,25 @@ USE_I18N = True
 LOCALE_PATHS = [
     os.path.join(BASE_DIR, 'locale'),
 ]
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.2/howto/static-files/
+ 
 
 STATIC_URL = "static/"
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
-
+ 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+ANALYSIS_CONFIG = {
+    "disease_trends": {
+        "filters": ["age_group"],
+        "chart": "line",
+    },
+    "regional_comparison": {
+        "filters": ["year"],
+        "chart": "bar",
+    },
+    "gender_disease_distribution": {
+        "filters": ["year"],
+        "chart": "grouped_bar",
+    },
+}

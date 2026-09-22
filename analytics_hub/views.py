@@ -14,6 +14,7 @@ from django.utils.translation import get_language
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 # from .models import GBDRecord
+from .services.chart_builder import build_chart_data
 
 # views.py
  
@@ -28,6 +29,7 @@ from .models import (
     Observation,
     Cause,
     Sex,
+    VisualizationConfig,
     AgeGroup,
     FacilityCategory,
 )
@@ -37,11 +39,14 @@ from .models import (
 from django.views.decorators.csrf import csrf_exempt
 from .models import Observation, Topic, Indicator, Location, Sex, Cause, FacilityCategory
 from .utils import process_excel_upload
-from .forms import ExcelUploadForm # Adjust import if needed
+from .forms import ExcelUploadForm  
+
+
 
 def dashboard_view(request):
     if request.method == "POST" and "excel_file" in request.FILES:
         form = ExcelUploadForm(request.POST, request.FILES)
+
         if form.is_valid():
             try:
                 process_excel_upload(request.FILES["excel_file"])
@@ -52,52 +57,91 @@ def dashboard_view(request):
         else:
             messages.error(request, "Invalid upload.")
 
-    # 1. Start with the base queryset
     queryset = Observation.objects.select_related(
-        'indicator', 'location', 'cause', 'sex', 'facility_category'
+        "indicator",
+        "location",
+        "cause",
+        "sex",
+        "facility_category",
+        "age_group",
     ).all()
 
-    # 2. Retrieve and clean request parameters (treat empty strings as None)
     geography = request.GET.get("geography", "regional")
     topic_id = request.GET.get("topic") or None
     indicator_id = request.GET.get("indicator") or None
-    age_group_id = request.GET.get("age_group") or None
     year = request.GET.get("year") or None
     location_id = request.GET.get("location") or None
     cause_id = request.GET.get("cause") or None
     sex_id = request.GET.get("sex") or None
+    age_group_id = request.GET.get("age_group") or None
     facility_category_id = request.GET.get("facility_category") or None
-    if age_group_id:
-        queryset = queryset.filter(age_group_id=age_group_id)
-    # 3. Apply geography level filter safely
-    if geography == "national":
-        queryset = queryset.filter(location__level__iexact="country")
-    elif geography == "regional":
-        queryset = queryset.filter(location__level__iexact="regional") | queryset.filter(location__level__iexact="region")
-    elif geography == "zone":
-        queryset = queryset.filter(location__level__iexact="zone")
-    elif geography == "woreda":
-        queryset = queryset.filter(location__level__iexact="woreda")
 
-    # 4. Apply dynamic foreign key and attribute filters
-    if topic_id:
-        queryset = queryset.filter(indicator__topic_id=topic_id)
+    selected_indicator = None
+    viz_config = None
+    enabled_filters = []
+ 
     if indicator_id:
-        queryset = queryset.filter(indicator_id=indicator_id)
+            try:
+                selected_indicator = (
+                    Indicator.objects
+                    .get(pk=indicator_id)
+                )
+                # Explicitly query VisualizationConfig instead of relying on reverse attribute name
+                viz_config = VisualizationConfig.objects.filter(indicator=selected_indicator).first()
+
+                if viz_config:
+                    enabled_filters = viz_config.filters or []
+
+            except Indicator.DoesNotExist:
+                pass
+    # 1. Topic and indicator filters first
+    if topic_id:
+        queryset = queryset.filter(
+            indicator__topic_id=topic_id
+        )
+
+    if indicator_id:
+        queryset = queryset.filter(
+            indicator_id=indicator_id
+        )
+ 
+    if geography == "national":
+        queryset = queryset.filter(
+            location__level__iexact="country"
+        )
+    elif geography == "regional":
+        queryset = queryset.filter(
+            location__level__in=[
+                "regional",
+                "region"
+            ]
+        )
+    elif geography == "zone":
+        queryset = queryset.filter(
+            location__level__iexact="zone"
+        )
+    elif geography == "woreda":
+        queryset = queryset.filter(
+            location__level__iexact="woreda"
+        ) 
     if year:
         queryset = queryset.filter(year=year)
+
     if location_id:
         queryset = queryset.filter(location_id=location_id)
+
     if cause_id:
         queryset = queryset.filter(cause_id=cause_id)
+
     if sex_id:
         queryset = queryset.filter(sex_id=sex_id)
+
+    if age_group_id:
+        queryset = queryset.filter(age_group_id=age_group_id)
+
     if facility_category_id:
         queryset = queryset.filter(facility_category_id=facility_category_id)
 
-    # ==========================================
-    # KPI Cards
-    # ==========================================
     metrics = queryset.aggregate(
         total_value=Sum("value"),
         average_value=Avg("value"),
@@ -105,67 +149,70 @@ def dashboard_view(request):
         latest_year=Max("year"),
     )
 
-    # ==========================================
-    # Chart Data (Aggregated by Year)
-    # ==========================================
-    chart_queryset = (
-        queryset
-        .values("year")
-        .annotate(
-            avg_value=Avg("value"),
-            avg_lower=Avg("lower_bound"),
-            avg_upper=Avg("upper_bound")
-        )
-        .order_by("year")
-    )
+ 
+    chart_data = {}
 
-    chart_labels = [item["year"] for item in chart_queryset]
-    chart_values = [float(item["avg_value"]) if item["avg_value"] is not None else 0.0 for item in chart_queryset]
-    chart_lower = [float(item["avg_lower"]) if item["avg_lower"] is not None else 0.0 for item in chart_queryset]
-    chart_upper = [float(item["avg_upper"]) if item["avg_upper"] is not None else 0.0 for item in chart_queryset]
+    if selected_indicator:
+        # 1. Try to fetch the configured visualization settings
+        viz_config = VisualizationConfig.objects.filter(indicator=selected_indicator).first()
+        
+        # 2. If no config exists in the database yet, provide a safe fallback config object
+        if not viz_config:
+            class DefaultConfig:
+                chart_type = selected_indicator.default_chart_type or "line"
+                x_axis = "year"  # Default fallback grouping dimension
+                indicator = selected_indicator
+            viz_config = DefaultConfig()
 
-    chart_data = {
-        "labels": chart_labels,
-        "values": chart_values,
-        "lower": chart_lower,
-        "upper": chart_upper,
-    }
+        try:
+            chart_data = build_chart_data(
+                queryset,
+                viz_config
+            )
+        except Exception as e:
+            print("Chart generation error:", e)
+            chart_data = {}
 
-    # ==========================================
-    # Map Dataset
-    # ==========================================
     map_queryset = (
         queryset
-        .values("location__id", "location__name")
-        .annotate(value=Avg("value"))
+        .values(
+            "location__id",
+            "location__name"
+        )
+        .annotate(
+            value=Avg("value")
+        )
     )
 
     map_data = [
         {
             "id": item["location__id"],
             "name": item["location__name"],
-            "value": float(item["value"]) if item["value"] is not None else 0.0,
+            "value": float(item["value"])
+            if item["value"] is not None
+            else 0.0,
         }
         for item in map_queryset
     ]
 
-    # ==========================================
-    # Rankings & Tables
-    # ==========================================
     rankings = queryset.order_by("-value")[:20]
     table_records = queryset.order_by("-year")[:100]
 
-    # ==========================================
-    # Filter Dropdown Lists
-    # ==========================================
     topics = Topic.objects.all()
     indicators = Indicator.objects.all()
     locations = Location.objects.all()
     sexes = Sex.objects.all()
     causes = Cause.objects.all()
     facility_categories = FacilityCategory.objects.all()
-    years = Observation.objects.values_list("year", flat=True).distinct().order_by("-year")
     age_groups = AgeGroup.objects.all()
+
+    years = (
+        Observation.objects
+        .values_list("year", flat=True)
+        .distinct()
+        .order_by("-year")
+    )
+
     geojson_url = "/api/geojson/"
 
     context = {
@@ -176,12 +223,13 @@ def dashboard_view(request):
         "sexes": sexes,
         "causes": causes,
         "facility_categories": facility_categories,
-        "years": years,
         "age_groups": age_groups,
+        "years": years,
         "records": table_records,
         "rankings": rankings,
         "chart_data": json.dumps(chart_data),
         "map_data": json.dumps(map_data),
+        "enabled_filters": enabled_filters,
         "geojson_url": geojson_url,
         "selected_topic": topic_id,
         "selected_indicator": indicator_id,
@@ -198,8 +246,22 @@ def dashboard_view(request):
         "latest_year": metrics["latest_year"] or "-",
     }
 
-    return render(request, "analytics_hub/dashboard.html", context)
+    return render(
+        request,
+        "analytics_hub/dashboard.html",
+        context,
+    )
+def analysis_data(request, slug):
 
+    if slug == "disease_trends":
+        return disease_trends(request)
+
+    elif slug == "regional_comparison":
+        return regional_comparison(request)
+
+    elif slug == "gender_disease_distribution":
+        return gender_distribution(request)
+    
 def ai_chatbot_api(request):
     if request.method == 'POST':
         try:

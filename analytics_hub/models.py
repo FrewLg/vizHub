@@ -145,7 +145,12 @@ class Indicator(models.Model):
     updated_at = models.DateTimeField(
         auto_now=True
     )
-
+    age_group = models.ForeignKey(
+            'AgeGroup', 
+            on_delete=models.SET_NULL, 
+            null=True, 
+            blank=True
+        )
     def __str__(self):
         return self.name
 
@@ -223,10 +228,7 @@ class LocationGeometry(models.Model):
         return self.location.name
 
 
-
-# =========================
-# Sex
-# =========================
+ 
 
 class Sex(models.Model):
 
@@ -238,10 +240,7 @@ class Sex(models.Model):
     def __str__(self):
         return self.name
 
-
-# =========================
-# Cause
-# =========================
+ 
 
 class Cause(models.Model):
 
@@ -258,9 +257,7 @@ class Cause(models.Model):
         return self.name
 
 
-# =========================
-# Facility Category
-# =========================
+ 
 
 class FacilityCategory(models.Model):
 
@@ -302,8 +299,7 @@ class DataSource(models.Model):
 
 # =========================
 # Observation
-# =========================
-
+# ========================= 
 class Observation(models.Model):
 
     indicator = models.ForeignKey(
@@ -316,6 +312,12 @@ class Observation(models.Model):
         Location,
         on_delete=models.CASCADE,
         related_name="observations"
+    )
+
+    # For daily, weekly, or monthly time-series data (e.g., COVID-19 surveillance)
+    date = models.DateField(
+        null=True,
+        blank=True
     )
 
     year = models.PositiveIntegerField()
@@ -348,6 +350,13 @@ class Observation(models.Model):
         on_delete=models.SET_NULL
     )
 
+    age_group = models.ForeignKey(
+        'AgeGroup', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True
+    )
+
     value = models.DecimalField(
         max_digits=20,
         decimal_places=6
@@ -367,6 +376,13 @@ class Observation(models.Model):
         blank=True
     )
 
+    # 🚀 Catch-all for any extra columns/metadata in incoming files 
+    # (e.g., wealth quintile, urban/rural, custom program flags)
+    extra_attributes = models.JSONField(
+        default=dict,
+        blank=True
+    )
+
     created_at = models.DateTimeField(
         auto_now_add=True
     )
@@ -375,66 +391,29 @@ class Observation(models.Model):
         auto_now=True
     )
 
-    age_group = models.ForeignKey(
-        'AgeGroup', 
-        on_delete=models.SET_NULL, 
-        null=True, 
-        blank=True
-    )
-class Meta:
-
+    class Meta:
         indexes = [
-            models.Index(
-                fields=[
-                    "indicator",
-                    "year"
-                ]
-            ),
-
-            models.Index(
-                fields=[
-                    "location",
-                    "year"
-                ]
-            ),
-
-            models.Index(
-                fields=[
-                    "indicator",
-                    "location",
-                    "year"
-                ]
-            ),
-
-            models.Index(
-                fields=[
-                    "cause"
-                ]
-            ),
-
-            models.Index(
-                fields=[
-                    "sex"
-                ]
-            )
+            models.Index(fields=["indicator", "year"]),
+            models.Index(fields=["location", "year"]),
+            models.Index(fields=["indicator", "location", "year"]),
+            models.Index(fields=["date"]),
         ]
 
         unique_together = (
             "indicator",
             "location",
             "year",
+            "date",
             "sex",
             "cause",
-            "facility_category"
+            "facility_category",
+            "age_group"
         )
-
-
+ 
 # =========================
 # Visualization Config
 # =========================
-
 class VisualizationConfig(models.Model):
-
     indicator = models.OneToOneField(
         Indicator,
         on_delete=models.CASCADE,
@@ -446,29 +425,35 @@ class VisualizationConfig(models.Model):
         choices=Indicator.CHART_TYPES
     )
 
-    map_enabled = models.BooleanField(
-        default=False
+    x_axis = models.CharField(
+        max_length=50,
+        default="year"
     )
 
-    national_enabled = models.BooleanField(
-        default=True
+    series_dimension = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True
     )
 
-    regional_enabled = models.BooleanField(
-        default=True
+    filters = models.JSONField(
+        default=list,
+        blank=True
     )
 
-    ranking_enabled = models.BooleanField(
-        default=False
-    )
+    map_enabled = models.BooleanField(default=False)
+
+    national_enabled = models.BooleanField(default=True)
+
+    regional_enabled = models.BooleanField(default=True)
+
+    ranking_enabled = models.BooleanField(default=False)
 
     color_scheme = models.CharField(
         max_length=100,
         blank=True
     )
-    def __str__(self):
-        return f"{self.indicator.name}"
-
+    
 class DimensionType(models.Model):
     name = models.CharField(max_length=100)
 
@@ -488,4 +473,27 @@ class AgeGroup(models.Model):
     def __str__(self):
         return self.name
 
+# ///////////
+class Analysis(models.Model):
+    slug = models.SlugField(unique=True)
+    title = models.CharField(max_length=200)
 
+class FilterDefinition(models.Model):
+    analysis = models.ForeignKey(
+        Analysis,
+        on_delete=models.CASCADE
+    )
+
+    field_name = models.CharField(max_length=50)
+
+    FILTER_TYPES = (
+        ("year", "Year"),
+        ("gender", "Gender"),
+        ("age_group", "Age Group"),
+        ("region", "Region"),
+    )
+
+    filter_type = models.CharField(
+        max_length=20,
+        choices=FILTER_TYPES
+    )
