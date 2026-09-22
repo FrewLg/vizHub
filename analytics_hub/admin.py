@@ -122,6 +122,16 @@ class ObservationAdmin(admin.ModelAdmin):
         "facility_category",
         "data_source",
     )
+    actions_list = ["add_observation"]
+
+    def add_observation(self, request):
+        return redirect(
+            reverse(
+                f"admin:{self.model._meta.app_label}_{self.model._meta.model_name}_add"
+            )
+        )
+
+    add_observation.short_description = "Add New Observation"
     list_per_page = 50
 
 
