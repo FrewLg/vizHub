@@ -138,7 +138,22 @@ class ObservationBarChartView(TemplateView):
         context["selected_location"] = location_id
         context["selected_cause"] = cause_id
         context["selected_sex"] = sex_id
+        # Line chart: Year vs Total Value
 
+        line_data = (
+            queryset
+            .values("year")
+            .annotate(total=Sum("value"))
+            .order_by("year")
+        )
+
+        context["line_chart_labels"] = [
+            str(row["year"]) for row in line_data
+        ]
+
+        context["line_chart_values"] = [
+            float(row["total"] or 0) for row in line_data
+        ]
         return context
 def dashboard_view(request):
     if request.method == "POST" and "excel_file" in request.FILES:

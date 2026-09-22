@@ -16,12 +16,40 @@ Observation by Location
 
         <canvas id="barChart"></canvas>
     </div>
+    <div class="mt-5">
+    <h5>Trend Over Time</h5>
+    <canvas id="lineChart"></canvas>
+</div>
 </div>
 
 {{ chart_labels|json_script:"chart-labels" }}
 {{ chart_values|json_script:"chart-values" }}
 <script src="https://cdn.jsdelivr.net/npm/chart.js" ></script> 
  
+<script>
+new Chart(document.getElementById('lineChart'), {
+    type: 'line',
+    data: {
+        labels: {{ line_chart_labels|safe }},
+        datasets: [{
+            label: 'Trend',
+            data: {{ line_chart_values|safe }},
+            borderColor: '#2563eb',
+            backgroundColor: 'rgba(37,99,235,0.1)',
+            fill: true,
+            tension: 0.3
+        }]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            y: {
+                beginAtZero: true
+            }
+        }
+    }
+});
+</script>
 
 <script>
 
