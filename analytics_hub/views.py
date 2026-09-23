@@ -151,10 +151,17 @@ class ObservationBarChartView(TemplateView):
         )
 
     
+        # value_lookup = {
+        #     row["location__name"]: float(row["totall"] or 0)
+        #     for row in map_data
+        # }
+
         value_lookup = {
-            row["location__name"]: float(row["totall"] or 0)
+            row["location__name"]: float(row["total"] or 0)
             for row in map_data
         }
+
+
         geojson_path = (
             Path(settings.BASE_DIR)
             / "GE_Zones_2026"
