@@ -182,6 +182,8 @@ class ObservationBarChartView(TemplateView):
         context["map_geojson"] = json.dumps(geojson)
 
         return context
+
+        # 
 def dashboard_view(request):
     if request.method == "POST" and "excel_file" in request.FILES:
         form = ExcelUploadForm(request.POST, request.FILES)
