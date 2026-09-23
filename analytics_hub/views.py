@@ -150,11 +150,11 @@ class ObservationBarChartView(TemplateView):
             .annotate(total=Sum("value"))
         )
 
+    
         value_lookup = {
-            row["location__name"\]: float(row["total"] or 0)
+            row["location__name"]: float(row["totall"] or 0)
             for row in map_data
         }
-
         geojson_path = (
             Path(settings.BASE_DIR)
             / "GE_Zones_2026"
@@ -164,14 +164,13 @@ class ObservationBarChartView(TemplateView):
         with open(geojson_path, encoding="utf-8") as f:
             geojson = json.load(f)
 
-        # Attach observation values to GeoJSON features
-        for feature in geojson["features"\]:
-
+        for feature in geojson["features"]:
             zone_name = feature["properties"].get("ZONE_NAME")
 
-            feature["properties"]["value"] = (
-                value_lookup.get(zone_name, 0)
-            )
+            if zone_name in value_lookup:
+                print("MATCH:", zone_name)
+
+            feature["properties"]["value"] = value_lookup.get(zone_name, 0)
 
         context["map_geojson"] = json.dumps(geojson)
 
