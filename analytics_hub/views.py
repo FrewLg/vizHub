@@ -1,23 +1,17 @@
 import json
+from pathlib import Path
+from django.conf import settings
 from django.shortcuts import render, redirect
 from django.contrib import messages
-#from .models import GBDRecord
 from .utils import process_excel_upload
-
 from django.http import HttpResponse
 from .utils_pdf import generate_gbd_pdf_report
-
-#from django.shortcuts import render
 from django.utils.translation import get_language
-
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-# from .models import GBDRecord
 from .services.chart_builder import build_chart_data
- 
 from django.contrib import messages
 from django.db.models import Avg, Sum, Count, Max
-
 from .models import (
     Topic,
     Indicator,
@@ -29,19 +23,13 @@ from .models import (
     AgeGroup,
     FacilityCategory,
 )
-
- 
- 
 from .forms import ExcelUploadForm  
-
- 
-
 from django.views.generic import TemplateView
  
 
 class ObservationBarChartView(TemplateView):
     template_name = "analytics_hub/charts/bar_chart.html"
-
+    # Map
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         indicator_name = "All Indicators"
@@ -154,6 +142,39 @@ class ObservationBarChartView(TemplateView):
         context["line_chart_values"] = [
             float(row["total"] or 0) for row in line_data
         ]
+
+        # Map aggregation
+        map_data = (
+            queryset
+            .values("location__name")
+            .annotate(total=Sum("value"))
+        )
+
+        value_lookup = {
+            row["location__name"\]: float(row["total"] or 0)
+            for row in map_data
+        }
+
+        geojson_path = (
+            Path(settings.BASE_DIR)
+            / "GE_Zones_2026"
+            / "Zones_2026.geojson"
+        )
+
+        with open(geojson_path, encoding="utf-8") as f:
+            geojson = json.load(f)
+
+        # Attach observation values to GeoJSON features
+        for feature in geojson["features"\]:
+
+            zone_name = feature["properties"].get("ZONE_NAME")
+
+            feature["properties"]["value"] = (
+                value_lookup.get(zone_name, 0)
+            )
+
+        context["map_geojson"] = json.dumps(geojson)
+
         return context
 def dashboard_view(request):
     if request.method == "POST" and "excel_file" in request.FILES:

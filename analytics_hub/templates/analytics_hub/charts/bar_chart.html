@@ -27,28 +27,58 @@ Observation by Location
 <script src="https://cdn.jsdelivr.net/npm/chart.js" ></script> 
  
 <script>
-new Chart(document.getElementById('lineChart'), {
-    type: 'line',
-    data: {
-        labels: {{ line_chart_labels|safe }},
-        datasets: [{
-            label: 'Trend',
-            data: {{ line_chart_values|safe }},
-            borderColor: '#2563eb',
-            backgroundColor: 'rgba(37,99,235,0.1)',
-            fill: true,
-            tension: 0.3
-        }]
-    },
-    options: {
-        responsive: true,
-        scales: {
-            y: {
-                beginAtZero: true
-            }
-        }
-    }
-});
+
+// new Chart(document.getElementById('lineChart'), {
+//     type: 'line',
+//     data: {
+//         labels: {{ line_chart_labels|safe }},
+//         datasets: [{
+//             label: 'Trend',
+//             data: {{ line_chart_values|safe }},
+//             borderColor: '#2563eb',
+//             backgroundColor: 'rgba(37,99,235,0.1)',
+//             fill: true,
+//             tension: 0.3
+//         }]
+//     },
+//     options: {
+//         responsive: true,
+//         scales: {
+//             y: {
+//                 beginAtZero: true
+//             }
+//         }
+//     }
+// });
+years = sorted(set(item["year"] for item in data))
+
+male_values = []
+female_values = []
+
+for year in years:
+    male = next(
+        (
+            item["value"]
+            for item in data
+            if item["year"] == year
+            and item["sex__name"] == "Male"
+        ),
+        None,
+    )
+
+    female = next(
+        (
+            item["value"]
+            for item in data
+            if item["year"] == year
+            and item["sex__name"] == "Female"
+        ),
+        None,
+    )
+
+    male_values.append(male)
+    female_values.append(female)
+
 </script>
 
 <script>
@@ -166,9 +196,70 @@ document.addEventListener("DOMContentLoaded", function () {
 
 {% block map_content %}
 
-<div
+<!-- <div
     id="map"
     class="h-[600px] rounded border">
+</div> -->
+<div>
+<div id="map" style="height:500px;"></div>
 </div>
+<!--  -->
 
+<script>
+const geojsonData = JSON.parse(
+    '{{ map_geojson|escapejs }}'
+);
+
+const map = L.map('map').setView([9.145, 40.4897], 6);
+
+L.tileLayer(
+    'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    {
+        attribution: '&copy; OpenStreetMap'
+    }
+).addTo(map);
+
+function getColor(v) {
+    return v > 10000 ? '#800026' :
+           v > 5000  ? '#BD0026' :
+           v > 2000  ? '#E31A1C' :
+           v > 1000  ? '#FC4E2A' :
+           v > 500   ? '#FD8D3C' :
+           v > 100   ? '#FEB24C' :
+           v > 0     ? '#FED976' :
+                       '#EFEFEF';
+}
+
+function style(feature) {
+    return {
+        fillColor: getColor(
+            feature.properties.value || 0
+        ),
+        weight: 1,
+        color: '#666',
+        fillOpacity: 0.7
+    };
+}
+
+function onEachFeature(feature, layer) {
+
+    layer.bindPopup(
+        '<b>' +
+        feature.properties.ZONE_NAME +
+        '</b><br>' +
+        'Value: ' +
+        (feature.properties.value || 0)
+    );
+}
+
+const geoLayer = L.geoJSON(
+    geojsonData,
+    {
+        style: style,
+        onEachFeature: onEachFeature
+    }
+).addTo(map);
+
+map.fitBounds(geoLayer.getBounds());
+</script>
 {% endblock %}
