@@ -10,8 +10,7 @@ Observation by Location
 <div class="bg-white dark:bg-gray-800 p-4 rounded">
     <div style="height:500px;">
         <div class="alert alert-info">
-    Indicator: <strong>{{ indicator_name }}</strong><br>
-    <!-- Year: {{ selected_year }} -->
+     <!-- Year: {{ selected_year }} -->
 </div>
 
         <canvas id="barChart"></canvas>
@@ -30,6 +29,7 @@ Observation by Location
 new Chart(document.getElementById('lineChart'), {
     type: 'line',
     data: {
+        // labels: {{ line_chart_labels|safe }},
         labels: {{ line_chart_labels|safe }},
         datasets: [{
             label: 'Trend',
@@ -166,9 +166,168 @@ document.addEventListener("DOMContentLoaded", function () {
 
 {% block map_content %}
 
-<div
-    id="map"
-    class="h-[600px] rounded border">
-</div>
+{{ data|json_script:"observation-data" }}
 
+<div id="map-container" class="relative w-[full] h-[900px] bg-white dark:bg-gray-900 rounded-lg shadow-inner">
+    <!-- Inside your HTML template -->
+</div>
+<script>
+ 
+// document.addEventListener("DOMContentLoaded", function () {
+//     // 1. Set up container dimensions
+//     const container = document.getElementById("map-container");
+//     if (!container) return;
+    
+//     const width = container.clientWidth || 1100;
+//     const height = 800;
+
+//     // 2. Create SVG element inside the container
+//     const svg = d3.select("#map-container")
+//         .append("svg")
+//         .attr("width", "100%")
+//         .attr("height", "100%")
+//         .attr("viewBox", `0 0 ${width} ${height}`)
+//         .classed("max-w-full h-auto", true);
+
+//     // 3. Define a geographic projection centered over Ethiopia
+//     // Latitude ~9°N, Longitude ~38°E
+//     const projection = d3.geoMercator()
+//         .center([38.5, 9.1])
+//         .scale(2800)
+//         .translate([width / 2, height / 2]);
+
+//     // 4. Define a geo path generator using the projection
+//     const pathGenerator = d3.geoPath().projection(projection);
+
+//     // 5. Create a tooltip div for hover interactions
+//     const tooltip = d3.select("body").append("div")
+//         .attr("class", "absolute hidden bg-gray-900 text-white text-xs rounded p-2 pointer-events-none shadow-lg z-50");
+
+//     // 6. Load the GeoJSON file (Update the path to your static file endpoint)
+//     d3.json("/static/geojson/ethiopia_regions.geojson").then(geojson => {
+        
+//         svg.selectAll("path")
+//             .data(geojson.features)
+//             .enter()
+//             .append("path")
+//             .attr("d", pathGenerator)
+//             .attr("fill", "#e2e8f0") // Default neutral fill
+//             .attr("stroke", "#cbd5e1") // Border stroke
+//             .attr("stroke-width", "0.75")
+//             .attr("class", "transition-colors duration-150 cursor-pointer hover:fill-blue-400")
+//             .on("mouseover", function (event, d) {
+//                 // Highlight path and display region name from properties
+//                 d3.select(this).attr("fill", "#3b82f6");
+                
+//                 const regionName = d.properties.NAME_1 || d.properties.region || "Unknown Region";
+                
+//                 tooltip.classed("hidden", false)
+//                     .html(`<strong>Region:</strong> ${regionName}`);
+//             })
+//             .on("mousemove", function (event) {
+//                 tooltip.style("top", (event.pageY - 10) + "px")
+//                        .style("left", (event.pageX + 10) + "px");
+//             })
+//             .on("mouseout", function () {
+//                 d3.select(this).attr("fill", "#e2e8f0");
+//                 tooltip.classed("hidden", true);
+//             })
+//             .on("click", function (event, d) {
+//                 // Optional: Handle click event to trigger drilling down into zones/woredas
+//                 const regionId = d.properties.ID_1 || d.properties.name;
+//                 console.log("Selected region clicked:", regionId);
+//             });
+
+//     }).catch(error => {
+//         console.error("Error loading or parsing the GeoJSON file for the VizHub:", error);
+//     });
+// });
+
+document.addEventListener("DOMContentLoaded", function () {
+    const container = document.getElementById("map-container");
+    if (!container) return;
+    
+    const width = container.clientWidth || 1100;
+    const height = 800;
+
+    const svg = d3.select("#map-container")
+        .append("svg")
+        .attr("width", "100%")
+        .attr("height", "100%")
+        .attr("viewBox", `0 0 ${width} ${height}`)
+        .classed("max-w-full h-auto", true);
+
+    const projection = d3.geoMercator()
+        .center([38.5, 9.1])
+        .scale(2800)
+        .translate([width / 2, height / 2]);
+
+    const pathGenerator = d3.geoPath().projection(projection);
+
+    const tooltip = d3.select("body").append("div")
+        .attr("class", "absolute hidden bg-gray-900 text-white text-xs rounded p-2 pointer-events-none shadow-lg z-50");
+
+    // 1. Load Django observation data from the json_script tag
+    const rawDataElement = document.getElementById("observation-data");
+    const observationList = rawDataElement ? JSON.parse(rawDataElement.textContent) : [];
+
+    // Create a lookup map: { "Afar": 84.2, "Addis Ababa": ... }
+    // Clean strings (lowercase/trim) to minimize naming mismatch issues
+    const dataMap = {};
+    observationList.forEach(item => {
+        if (item.label) {
+            const cleanName = item.label.trim().toLowerCase();
+            dataMap[cleanName] = item.value;
+        }
+    });
+
+    // 2. Define a color scale based on your values (e.g., light blue to dark blue)
+    const values = observationList.map(d => d.value).filter(v => !isNaN(v));
+    const colorScale = d3.scaleSequential()
+        .domain([d3.min(values) || 0, d3.max(values) || 100])
+        .interpolator(d3.interpolateBlues);
+
+    // 3. Load GeoJSON and render
+    d3.json("/static/geojson/ethiopia_regions.geojson").then(geojson => {
+        
+        svg.selectAll("path")
+            .data(geojson.features)
+            .enter()
+            .append("path")
+            .attr("d", pathGenerator)
+            .attr("fill", function(d) {
+                // Match GeoJSON region name property with Django data map
+                const geoName = (d.properties.NAME_1 || d.properties.region || "").trim().toLowerCase();
+                const value = dataMap[geoName];
+                
+                // If data exists for this region, color it; otherwise make it light gray
+                return value !== undefined ? colorScale(value) : "#e2e8f0";
+            })
+            .attr("stroke", "#cbd5e1")
+            .attr("stroke-width", "0.75")
+            .attr("class", "transition-colors duration-150 cursor-pointer")
+            .on("mouseover", function (event, d) {
+                const regionName = d.properties.NAME_1 || d.properties.region || "Unknown Region";
+                const cleanName = regionName.trim().toLowerCase();
+                const value = dataMap[cleanName];
+
+                d3.select(this).attr("stroke", "#1e3a8a").attr("stroke-width", "1.5");
+                
+                tooltip.classed("hidden", false)
+                    .html(`<strong>${regionName}</strong><br/>Value: ${value !== undefined ? value : 'No Data'}`);
+            })
+            .on("mousemove", function (event) {
+                tooltip.style("top", (event.pageY - 10) + "px")
+                       .style("left", (event.pageX + 10) + "px");
+            })
+            .on("mouseout", function () {
+                d3.select(this).attr("stroke", "#cbd5e1").attr("stroke-width", "0.75");
+                tooltip.classed("hidden", true);
+            });
+
+    }).catch(error => {
+        console.error("Error loading GeoJSON or parsing data:", error);
+    });
+});
+</script>
 {% endblock %}

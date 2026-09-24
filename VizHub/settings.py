@@ -293,10 +293,22 @@ LOCALE_PATHS = [
     os.path.join(BASE_DIR, 'locale'),
 ]
  
+ 
 
-STATIC_URL = "static/"
+ 
 
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATIC_URL = '/static/'
+
+# STATIC_ROOT is where files are copied TO when you run collectstatic (usually outside your source code or a separate folder)
+STATIC_ROOT = BASE_DIR / 'staticfiles'  
+
+# STATICFILES_DIRS is where Django looks FOR your source static files during development
+STATICFILES_DIRS = [
+    BASE_DIR / 'static',  # Ensure this points to your source static folder, NOT BASE_DIR / 'staticfiles'
+]
+
+
+# STATIC_ROOT = os.path.join(BASE_DIR, 'static')
  
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

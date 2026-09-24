@@ -1,23 +1,17 @@
 import json
 from django.shortcuts import render, redirect
 from django.contrib import messages
-#from .models import GBDRecord
 from .utils import process_excel_upload
-
 from django.http import HttpResponse
 from .utils_pdf import generate_gbd_pdf_report
-
-#from django.shortcuts import render
 from django.utils.translation import get_language
-
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-# from .models import GBDRecord
-from .services.chart_builder import build_chart_data
- 
+from .services.chart_builder import build_chart_data 
 from django.contrib import messages
 from django.db.models import Avg, Sum, Count, Max
-
+from .forms import ExcelUploadForm  
+from django.views.generic import TemplateView
 from .models import (
     Topic,
     Indicator,
@@ -27,26 +21,117 @@ from .models import (
     Sex,
     VisualizationConfig,
     AgeGroup,
-    FacilityCategory,
-)
+    FacilityCategory, )
 
- 
- 
-from .forms import ExcelUploadForm  
 
- 
+# class ObservationBarChartView(TemplateView):
+#     template_name = "analytics_hub/charts/bar_chart.html"
 
-from django.views.generic import TemplateView
- 
+#     def get_context_data(self, **kwargs):
+#         context = super().get_context_data(**kwargs)
+#         indicator_name = "-"
+#         geography = self.request.GET.get("geography", "regional")
+#         topic_id = self.request.GET.get("topic")
+#         indicator_id = self.request.GET.get("indicator")
+#         year = self.request.GET.get("year")
+#         location_id = self.request.GET.get("location")
+#         cause_id = self.request.GET.get("cause")
+#         sex_id = self.request.GET.get("sex")
+#         if indicator_id:
+#             try:
+#                 indicator = Indicator.objects.get(pk=indicator_id)
+#                 indicator_name = indicator.name
+#             except Indicator.DoesNotExist:
+#                 pass
+
+#         context["indicator_name"] = indicator_name
+#         queryset = Observation.objects.select_related("location", "indicator")
+#         if geography == "national":
+#             queryset = queryset.filter(location__level__iexact="country")
+#         elif geography == "regional":
+#             queryset = queryset.filter(location__level__in=["regional", "region", "Regional"])
+#         elif geography == "zone":
+#             queryset = queryset.filter(location__level__iexact="zone")
+#         elif geography == "woreda":
+#             queryset = queryset.filter(location__level__iexact="woreda")
+
+#         # 4. Apply Faceted Search Filters
+#         if topic_id:
+#             queryset = queryset.filter(indicator__topic_id=topic_id)
+
+#         if indicator_id:
+#             queryset = queryset.filter(indicator_id=indicator_id)
+
+#         if year:
+#             queryset = queryset.filter(year=year)
+
+#         if location_id:
+#             queryset = queryset.filter(location_id=location_id)
+
+#         if cause_id:
+#             queryset = queryset.filter(cause_id=cause_id)
+
+#         if sex_id:
+#             queryset = queryset.filter(sex_id=sex_id)
+#         data = (
+#             queryset
+#             .values("location__name")
+#             .annotate(total=Sum("value"))
+#             .order_by("-total")
+#         )
+
+#         labels = [row["location__name"] for row in data if row["location__name"]]
+#         values = [float(row["total"]) if row["total"] is not None else 0.0 for row in data if row["location__name"]]
+
+#         context["chart_labels"] = labels
+#         context["chart_values"] = values
+
+#         context["data"] = [
+#             {
+#                 "label": row["location__name"],
+#                 "value": float(row["total"]) if row["total"] is not None else 0.0
+#             }
+#             for row in data if row["location__name"]
+#         ]
+
+#         context["show_map"] = True
+#         context["topics"] = Topic.objects.all() if 'Topic' in globals() else []
+#         context["indicators"] = Indicator.objects.all()
+#         context["years"] = Observation.objects.values_list('year', flat=True).distinct().order_by('-year')
+#         context["locations"] = Location.objects.all()
+#         context["causes"] = Cause.objects.all() if 'Cause' in globals() else []
+#         context["sexes"] = Sex.objects.all() if 'Sex' in globals() else []
+#         context["selected_geography"] = geography
+#         context["selected_topic"] = topic_id
+#         context["selected_indicator"] = indicator_id
+#         context["selected_year"] = year
+#         context["selected_location"] = location_id
+#         context["selected_cause"] = cause_id
+#         context["selected_sex"] = sex_id
+#         line_data = (
+#             queryset
+#             .values("year")
+#             .annotate(total=Sum("value"))
+#             .order_by("year")
+#         )
+
+#         context["line_chart_labels"] = [
+#             str(row["year"]) for row in line_data
+#         ]
+
+#         context["line_chart_values"] = [
+#             float(row["total"] or 0) for row in line_data
+#         ]
+#         return context
 
 class ObservationBarChartView(TemplateView):
+    # template_name = "analytics_hub/charts/barchart.html"
     template_name = "analytics_hub/charts/bar_chart.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        indicator_name = "All Indicators"
-
-        # 1. Capture all sidebar GET parameters
+        indicator_name = "-"
+        
         geography = self.request.GET.get("geography", "regional")
         topic_id = self.request.GET.get("topic")
         indicator_id = self.request.GET.get("indicator")
@@ -64,10 +149,9 @@ class ObservationBarChartView(TemplateView):
 
         context["indicator_name"] = indicator_name
         
-        # 2. Base Queryset for Observations
         queryset = Observation.objects.select_related("location", "indicator")
 
-        # 3. Apply Geography Level Filter safely (adjust field values to match your DB)
+        # Fixed double-underscores for field lookups
         if geography == "national":
             queryset = queryset.filter(location__level__iexact="country")
         elif geography == "regional":
@@ -77,26 +161,20 @@ class ObservationBarChartView(TemplateView):
         elif geography == "woreda":
             queryset = queryset.filter(location__level__iexact="woreda")
 
-        # 4. Apply Faceted Search Filters
         if topic_id:
             queryset = queryset.filter(indicator__topic_id=topic_id)
-
         if indicator_id:
             queryset = queryset.filter(indicator_id=indicator_id)
-
         if year:
             queryset = queryset.filter(year=year)
-
         if location_id:
             queryset = queryset.filter(location_id=location_id)
-
         if cause_id:
             queryset = queryset.filter(cause_id=cause_id)
-
         if sex_id:
             queryset = queryset.filter(sex_id=sex_id)
 
-        # 5. Aggregate data grouped by location name
+        # Bar chart data aggregation
         data = (
             queryset
             .values("location__name")
@@ -119,10 +197,7 @@ class ObservationBarChartView(TemplateView):
         ]
 
         context["show_map"] = True
-
-        # ==========================================
-        # CRITICAL: Populate Sidebar Dropdowns for base.html
-        # ==========================================
+        
         context["topics"] = Topic.objects.all() if 'Topic' in globals() else []
         context["indicators"] = Indicator.objects.all()
         context["years"] = Observation.objects.values_list('year', flat=True).distinct().order_by('-year')
@@ -130,7 +205,6 @@ class ObservationBarChartView(TemplateView):
         context["causes"] = Cause.objects.all() if 'Cause' in globals() else []
         context["sexes"] = Sex.objects.all() if 'Sex' in globals() else []
 
-        # Preserve selected form states in the sidebar dropdowns
         context["selected_geography"] = geography
         context["selected_topic"] = topic_id
         context["selected_indicator"] = indicator_id
@@ -138,23 +212,19 @@ class ObservationBarChartView(TemplateView):
         context["selected_location"] = location_id
         context["selected_cause"] = cause_id
         context["selected_sex"] = sex_id
-        # Line chart: Year vs Total Value
 
-        line_data = (
+        # Line chart data aggregation (fixed order_by and values_list syntax)
+        linedata = (
             queryset
             .values("year")
             .annotate(total=Sum("value"))
             .order_by("year")
         )
 
-        context["line_chart_labels"] = [
-            str(row["year"]) for row in line_data
-        ]
+        context["line_chart_labels"] = [str(row["year"]) for row in linedata if row["year"]]
+        context["line_chart_values"] = [float(row["total"] or 0) for row in linedata if row["year"]]
 
-        context["line_chart_values"] = [
-            float(row["total"] or 0) for row in line_data
-        ]
-        return context
+        return context    
 def dashboard_view(request):
     if request.method == "POST" and "excel_file" in request.FILES:
         form = ExcelUploadForm(request.POST, request.FILES)
