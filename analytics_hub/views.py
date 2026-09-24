@@ -1,4 +1,6 @@
 import json
+from pathlib import Path
+from django.conf import settings
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from .utils import process_excel_upload
@@ -127,7 +129,7 @@ from .models import (
 class ObservationBarChartView(TemplateView):
     # template_name = "analytics_hub/charts/barchart.html"
     template_name = "analytics_hub/charts/bar_chart.html"
-
+    # Map
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         indicator_name = "-"
