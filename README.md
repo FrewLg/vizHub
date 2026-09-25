@@ -1,10 +1,5 @@
-# Health Data Visualization
-# Vizhub
-# NDMC
-# UnivW
-# National Data Amangement For Health -NDMC
-# Ethiopian Public Health Institute Visualization Hub (VizHub)
-
+# National Health Data Analytics and Visualization Hub
+ 
 > A professional-grade, interactive health data visualization and analytics platform developed for the National Data Management Center (NDMC) at the Ethiopian Public Health Institute (EPHI) .
 
 ---
@@ -43,15 +38,15 @@
 ```bash
 git clone [https://github.com/your-org/ephi-vizhub.git](https://github.com/your-org/ephi-vizhub.git)
 cd VizHub
-
+```
 ### 2. Set Up Virtual Environment and Dependencies
 ```bash
 python -m venv venv
 source venv/bin/activate  # On Windows use: venv\Scripts\activate
 pip install -r requirements.txt
-
+```
 ### 3. Configure Environment Variables
-####Create a .env file in the root directory:
+#### Create a .env file in the root directory:
 
 ```bash
 SECRET_KEY=your-secret-key
@@ -61,12 +56,13 @@ DB_USER=postgres
 DB_PASSWORD=your_password
 DB_HOST=localhost
 DB_PORT=5432
-###4. Run Migrations and Start Server
+```
+### 4. Run Migrations and Start Server
 ```bash 
 python manage.py migrate
 python manage.py runserver
+```
+#### Access the application locally at http://127.0.0.1:8000/.
 
-####Access the application locally at http://127.0.0.1:8000/.
-
-##Institutional Context
+## Institutional Context
 Developed to strengthen evidence-based decision-making and data dissemination under the umbrella of the National Data Management Center (NDMC) at the Ethiopian Public Health Institute (EPHI)
