@@ -226,6 +226,21 @@ class ObservationBarChartView(TemplateView):
         context["line_chart_labels"] = [str(row["year"]) for row in linedata if row["year"]]
         context["line_chart_values"] = [float(row["total"] or 0) for row in linedata if row["year"]]
 
+        # ── Map: load GeoJSON from static file and pass to template ──────────
+        geojson_path = Path(settings.BASE_DIR) / "static" / "geojson" / "ethiopia_regions.geojson"
+        try:
+            context["map_geojson"] = geojson_path.read_text(encoding="utf-8")
+        except FileNotFoundError:
+            context["map_geojson"] = '{"type":"FeatureCollection","features":[]}'
+
+        # Tell the template which GeoJSON name property to use for matching
+        # adm2_name = zone level, adm1_name = regional level
+        if geography == "zone":
+            context["map_name_prop"] = "adm2_name"
+        else:
+            # regional / national both map against adm1_name
+            context["map_name_prop"] = "adm1_name"
+
         return context    
 def dashboard_view(request):
     if request.method == "POST" and "excel_file" in request.FILES:
