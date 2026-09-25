@@ -51,7 +51,6 @@ new Chart(document.getElementById('lineChart'), {
 });
 </script>
 
-{# Leaflet choropleth lives in the Map tab — see block map_content below #}
 <script>
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -166,171 +165,180 @@ document.addEventListener("DOMContentLoaded", function () {
 {% endblock %}
 
 {% block map_content %}
-<div >
+{# ── Leaflet CSS/JS (loaded once, only when map tab is active) ─────────── #}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
+{# ── Observation data serialised from Django context ─────────────────── #}
 {{ data|json_script:"observation-data" }}
+
+{# ── The name property the JS should use to match features to DB records #}
+{# map_name_prop is set by the view: "adm2_name" for zone, "adm1_name" otherwise #}
+<script id="map-config" type="application/json">
+  { "nameProp": "{{ map_name_prop }}", "geography": "{{ selected_geography }}" }
+</script>
+
+{# ── Map container ─────────────────────────────────────────────────────── #}
+<div class="relative">
+  <div id="choropleth-map" class="w-full rounded-lg shadow-inner" style="height:520px;"></div>
+
+  {# Legend ─────────────────────────────────────────────────────────────── #}
+  <div id="map-legend"
+       class="absolute bottom-6 right-4 bg-white dark:bg-gray-800 border border-gray-200
+              dark:border-gray-600 rounded-lg shadow p-3 text-xs z-[1000] min-w-[140px]">
+    <p class="font-semibold mb-2 text-gray-700 dark:text-gray-200">{{ indicator_name }}</p>
+    <div id="legend-items"></div>
+    <p class="mt-2 text-gray-400 italic text-[10px]">No data</p>
+    <div class="w-full h-3 rounded mt-0.5" style="background:#e5e7eb;"></div>
+  </div>
 </div>
 
-<div id="map-container" class="relative w-[full] h-[900px] bg-white dark:bg-gray-900 rounded-lg shadow-inner">
-    <!-- Inside your HTML template -->
-</div>
 <script>
- 
-// document.addEventListener("DOMContentLoaded", function () {
-//     // 1. Set up container dimensions
-//     const container = document.getElementById("map-container");
-//     if (!container) return;
-    
-//     const width = container.clientWidth || 1100;
-//     const height = 800;
+(function () {
+  "use strict";
 
-//     // 2. Create SVG element inside the container
-//     const svg = d3.select("#map-container")
-//         .append("svg")
-//         .attr("width", "100%")
-//         .attr("height", "100%")
-//         .attr("viewBox", `0 0 ${width} ${height}`)
-//         .classed("max-w-full h-auto", true);
+  // ── 1. Read config injected by Django ──────────────────────────────────
+  const cfg    = JSON.parse(document.getElementById("map-config").textContent);
+  const NAME_PROP = cfg.nameProp;   // "adm2_name" or "adm1_name"
 
-//     // 3. Define a geographic projection centered over Ethiopia
-//     // Latitude ~9°N, Longitude ~38°E
-//     const projection = d3.geoMercator()
-//         .center([38.5, 9.1])
-//         .scale(2800)
-//         .translate([width / 2, height / 2]);
+  // ── 2. Build value lookup from Django observation data ─────────────────
+  const observations = JSON.parse(
+    document.getElementById("observation-data").textContent
+  );
 
-//     // 4. Define a geo path generator using the projection
-//     const pathGenerator = d3.geoPath().projection(projection);
+  // dataMap: { "tigray": 4200.0, "afar": 1150.0, … }
+  const dataMap = {};
+  let minVal = Infinity, maxVal = -Infinity;
 
-//     // 5. Create a tooltip div for hover interactions
-//     const tooltip = d3.select("body").append("div")
-//         .attr("class", "absolute hidden bg-gray-900 text-white text-xs rounded p-2 pointer-events-none shadow-lg z-50");
+  observations.forEach(function (item) {
+    if (!item.label) return;
+    const key = item.label.trim().toLowerCase();
+    dataMap[key] = item.value;
+    if (item.value < minVal) minVal = item.value;
+    if (item.value > maxVal) maxVal = item.value;
+  });
 
-//     // 6. Load the GeoJSON file (Update the path to your static file endpoint)
-//     d3.json("/static/geojson/ethiopia_regions.geojson").then(geojson => {
-        
-//         svg.selectAll("path")
-//             .data(geojson.features)
-//             .enter()
-//             .append("path")
-//             .attr("d", pathGenerator)
-//             .attr("fill", "#e2e8f0") // Default neutral fill
-//             .attr("stroke", "#cbd5e1") // Border stroke
-//             .attr("stroke-width", "0.75")
-//             .attr("class", "transition-colors duration-150 cursor-pointer hover:fill-blue-400")
-//             .on("mouseover", function (event, d) {
-//                 // Highlight path and display region name from properties
-//                 d3.select(this).attr("fill", "#3b82f6");
-                
-//                 const regionName = d.properties.NAME_1 || d.properties.region || "Unknown Region";
-                
-//                 tooltip.classed("hidden", false)
-//                     .html(`<strong>Region:</strong> ${regionName}`);
-//             })
-//             .on("mousemove", function (event) {
-//                 tooltip.style("top", (event.pageY - 10) + "px")
-//                        .style("left", (event.pageX + 10) + "px");
-//             })
-//             .on("mouseout", function () {
-//                 d3.select(this).attr("fill", "#e2e8f0");
-//                 tooltip.classed("hidden", true);
-//             })
-//             .on("click", function (event, d) {
-//                 // Optional: Handle click event to trigger drilling down into zones/woredas
-//                 const regionId = d.properties.ID_1 || d.properties.name;
-//                 console.log("Selected region clicked:", regionId);
-//             });
+  if (!isFinite(minVal)) { minVal = 0; maxVal = 100; }
 
-//     }).catch(error => {
-//         console.error("Error loading or parsing the GeoJSON file for the VizHub:", error);
-//     });
-// });
+  // ── 3. Colour helpers ──────────────────────────────────────────────────
+  // Seven-class sequential (light → dark) palette – colourblind-friendly
+  const PALETTE = [
+    "#eff3ff","#c6dbef","#9ecae1","#6baed6",
+    "#4292c6","#2171b5","#084594"
+  ];
 
-document.addEventListener("DOMContentLoaded", function () {
-    const container = document.getElementById("map-container");
-    if (!container) return;
-    
-    const width = container.clientWidth || 1100;
-    const height = 800;
+  function getColor(value) {
+    if (value === undefined || value === null) return "#e5e7eb"; // no-data grey
+    const ratio = maxVal === minVal
+      ? 0.5
+      : (value - minVal) / (maxVal - minVal);
+    const idx = Math.min(
+      Math.floor(ratio * PALETTE.length),
+      PALETTE.length - 1
+    );
+    return PALETTE[idx];
+  }
 
-    const svg = d3.select("#map-container")
-        .append("svg")
-        .attr("width", "100%")
-        .attr("height", "100%")
-        .attr("viewBox", `0 0 ${width} ${height}`)
-        .classed("max-w-full h-auto", true);
+  // ── 4. Initialise Leaflet map ──────────────────────────────────────────
+  const map = L.map("choropleth-map", { zoomControl: true })
+               .setView([9.145, 40.49], 6);
 
-    const projection = d3.geoMercator()
-        .center([38.5, 9.1])
-        .scale(2800)
-        .translate([width / 2, height / 2]);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: "&copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a>",
+    opacity: 0.4
+  }).addTo(map);
 
-    const pathGenerator = d3.geoPath().projection(projection);
+  // ── 5. Parse GeoJSON that Django embedded ─────────────────────────────
+  //   map_geojson is the raw file contents passed by the view
+  let geojsonData;
+  try {
+    geojsonData = JSON.parse('{{ map_geojson|escapejs }}');
+  } catch (e) {
+    console.error("VizHub: could not parse map_geojson", e);
+    return;
+  }
 
-    const tooltip = d3.select("body").append("div")
-        .attr("class", "absolute hidden bg-gray-900 text-white text-xs rounded p-2 pointer-events-none shadow-lg z-50");
+  // ── 6. Attach data values to each feature ─────────────────────────────
+  geojsonData.features.forEach(function (f) {
+    const rawName = f.properties[NAME_PROP] || "";
+    f.properties._value    = dataMap[rawName.trim().toLowerCase()];
+    f.properties._dispName = rawName;
+  });
 
-    // 1. Load Django observation data from the json_script tag
-    const rawDataElement = document.getElementById("observation-data");
-    const observationList = rawDataElement ? JSON.parse(rawDataElement.textContent) : [];
+  // ── 7. Layer styling ──────────────────────────────────────────────────
+  function featureStyle(feature) {
+    return {
+      fillColor  : getColor(feature.properties._value),
+      fillOpacity: 0.8,
+      color      : "#6b7280",
+      weight     : 0.8,
+      opacity    : 1
+    };
+  }
 
-    // Create a lookup map: { "Afar": 84.2, "Addis Ababa": ... }
-    // Clean strings (lowercase/trim) to minimize naming mismatch issues
-    const dataMap = {};
-    observationList.forEach(item => {
-        if (item.label) {
-            const cleanName = item.label.trim().toLowerCase();
-            dataMap[cleanName] = item.value;
-        }
+  function onEachFeature(feature, layer) {
+    const name  = feature.properties._dispName || "Unknown";
+    const val   = feature.properties._value;
+    const label = val !== undefined
+      ? Number(val).toLocaleString(undefined, { maximumFractionDigits: 2 })
+      : "No data";
+
+    layer.bindTooltip(
+      `<strong class="text-sm">${name}</strong><br/>
+       <span class="text-gray-500">Value:</span> ${label}`,
+      { sticky: true, opacity: 0.95 }
+    );
+
+    layer.on({
+      mouseover: function (e) {
+        e.target.setStyle({ weight: 2, color: "#1e3a8a", fillOpacity: 0.95 });
+        e.target.bringToFront();
+      },
+      mouseout: function (e) {
+        geoLayer.resetStyle(e.target);
+      }
     });
+  }
 
-    // 2. Define a color scale based on your values (e.g., light blue to dark blue)
-    const values = observationList.map(d => d.value).filter(v => !isNaN(v));
-    const colorScale = d3.scaleSequential()
-        .domain([d3.min(values) || 0, d3.max(values) || 100])
-        .interpolator(d3.interpolateBlues);
+  const geoLayer = L.geoJSON(geojsonData, {
+    style       : featureStyle,
+    onEachFeature: onEachFeature
+  }).addTo(map);
 
-    // 3. Load GeoJSON and render
-    d3.json("/static/geojson/ethiopia_regions.geojson").then(geojson => {
-        
-        svg.selectAll("path")
-            .data(geojson.features)
-            .enter()
-            .append("path")
-            .attr("d", pathGenerator)
-            .attr("fill", function(d) {
-                // Match GeoJSON region name property with Django data map
-                const geoName = (d.properties.NAME_1 || d.properties.region || "").trim().toLowerCase();
-                const value = dataMap[geoName];
-                
-                // If data exists for this region, color it; otherwise make it light gray
-                return value !== undefined ? colorScale(value) : "#e2e8f0";
-            })
-            .attr("stroke", "#cbd5e1")
-            .attr("stroke-width", "0.75")
-            .attr("class", "transition-colors duration-150 cursor-pointer")
-            .on("mouseover", function (event, d) {
-                const regionName = d.properties.NAME_1 || d.properties.region || "Unknown Region";
-                const cleanName = regionName.trim().toLowerCase();
-                const value = dataMap[cleanName];
+  // Fit map to features
+  if (geoLayer.getBounds().isValid()) {
+    map.fitBounds(geoLayer.getBounds(), { padding: [10, 10] });
+  }
 
-                d3.select(this).attr("stroke", "#1e3a8a").attr("stroke-width", "1.5");
-                
-                tooltip.classed("hidden", false)
-                    .html(`<strong>${regionName}</strong><br/>Value: ${value !== undefined ? value : 'No Data'}`);
-            })
-            .on("mousemove", function (event) {
-                tooltip.style("top", (event.pageY - 10) + "px")
-                       .style("left", (event.pageX + 10) + "px");
-            })
-            .on("mouseout", function () {
-                d3.select(this).attr("stroke", "#cbd5e1").attr("stroke-width", "0.75");
-                tooltip.classed("hidden", true);
-            });
-
-    }).catch(error => {
-        console.error("Error loading GeoJSON or parsing data:", error);
+  // ── 8. Render legend ──────────────────────────────────────────────────
+  const legendEl = document.getElementById("legend-items");
+  if (legendEl) {
+    const step = (maxVal - minVal) / PALETTE.length;
+    PALETTE.forEach(function (color, i) {
+      const lo = (minVal + i * step).toLocaleString(
+        undefined, { maximumFractionDigits: 0 });
+      const hi = (minVal + (i + 1) * step).toLocaleString(
+        undefined, { maximumFractionDigits: 0 });
+      legendEl.insertAdjacentHTML("beforeend",
+        `<div class="flex items-center gap-1.5 mb-1">
+           <span class="inline-block w-4 h-4 rounded-sm flex-shrink-0"
+                 style="background:${color};border:1px solid #d1d5db;"></span>
+           <span class="text-gray-600 dark:text-gray-300">${lo} – ${hi}</span>
+         </div>`
+      );
     });
-});
+  }
+
+  // ── 9. Invalidate map size when the Map tab becomes visible ───────────
+  //   (Leaflet can't measure a hidden container correctly)
+  document.querySelectorAll(".viz-tab").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      if (btn.dataset.target === "map-panel") {
+        setTimeout(function () { map.invalidateSize(); }, 50);
+      }
+    });
+  });
+
+}());
 </script>
 {% endblock %}
