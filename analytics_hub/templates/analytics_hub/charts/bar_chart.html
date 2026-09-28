@@ -202,10 +202,17 @@ buildCharts(
   const NAME_PROP = cfg.nameProp;   // adm0_name | adm1_name | adm2_name | adm3_name
   const USE_API   = cfg.useApi;     // true for woreda (large file)
 
-  // ── Colour scale (light → dark blue, 7 stops) ─────────────────────────
+  // ── Colour scale ─────────────────────────────────────────────────────
+  // 7-step sequential palette anchored on EPHI blue (#06439e)
+  // lightest → darkest so low values are pale, high values are deep navy
   const PALETTE = [
-    "#eff3ff","#c6dbef","#9ecae1","#6baed6",
-    "#4292c6","#2171b5","#084594"
+    "#e8f0fc",   // near-white tint
+    "#b3cdf4",   // light blue
+    "#7badf5",   // mid-light blue
+    "#4285e8",   // medium blue
+    "#1a5cbf",   // EPHI mid blue
+    "#06439e",   // EPHI primary blue
+    "#032a68"    // deep EPHI navy
   ];
   let minVal = 0, maxVal = 100;
 
@@ -216,11 +223,39 @@ buildCharts(
     return PALETTE[Math.min(Math.floor(ratio * PALETTE.length), PALETTE.length - 1)];
   }
 
+  // ── Legend renderer ───────────────────────────────────────────────────
   function updateLegend() {
-    document.getElementById("legend-min").textContent =
-      minVal.toLocaleString(undefined, { maximumFractionDigits: 0 });
-    document.getElementById("legend-max").textContent =
-      maxVal.toLocaleString(undefined, { maximumFractionDigits: 0 });
+    const swatchContainer = document.getElementById("legend-swatches");
+    const titleEl         = document.getElementById("legend-title");
+    if (!swatchContainer) return;
+
+    // Update title with current indicator (passed from window if refreshMap updated it)
+    if (titleEl && window._currentIndicatorName) {
+      titleEl.textContent = window._currentIndicatorName;
+      titleEl.title       = window._currentIndicatorName;
+    }
+
+    swatchContainer.innerHTML = "";
+
+    const step  = (maxVal - minVal) / PALETTE.length;
+    const fmt   = v => v.toLocaleString(undefined, { maximumFractionDigits: 0 });
+
+    // Render from darkest (highest) → lightest (lowest) — natural reading order
+    for (let i = PALETTE.length - 1; i >= 0; i--) {
+      const lo = minVal + i * step;
+      const hi = minVal + (i + 1) * step;
+      const row = document.createElement("div");
+      row.style.cssText = "display:flex;align-items:center;gap:7px;";
+      row.innerHTML =
+        `<span style="width:16px;height:11px;border-radius:3px;flex-shrink:0;
+                      background:${PALETTE[i]};
+                      border:1px solid rgba(6,67,158,.15);
+                      display:inline-block;"></span>
+         <span style="font-size:10px;color:#475569;white-space:nowrap;">
+           ${fmt(lo)} – ${fmt(hi)}
+         </span>`;
+      swatchContainer.appendChild(row);
+    }
   }
 
   // ── Initialise Leaflet ────────────────────────────────────────────────
@@ -400,30 +435,24 @@ buildCharts(
   });
 
   // ── refreshMap(params) — called by live-filter engine ─────────────────
-  // Fetches new GeoJSON (with values merged) and re-renders the layer.
   window.refreshMap = function (params) {
-    // Translate geography param → level param expected by geojson_api
     const geography = params.get("geography") || "regional";
     const apiParams = new URLSearchParams(params);
     apiParams.set("level", geography);
 
-    const USE_API_NOW = (geography === "woreda");
-
-    if (USE_API_NOW) {
+    if (geography === "woreda") {
       document.getElementById("map-loading").classList.remove("hidden");
     }
 
     fetch("/api/geojson/?" + apiParams.toString())
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
       .then(function (geojson) {
-        // Update NAME_PROP to match the new geography
         const propMap = {
           national: "adm0_name", regional: "adm1_name",
           zone:     "adm2_name", woreda:   "adm3_name"
         };
         const newNameProp = propMap[geography] || "adm1_name";
 
-        // Compute new min/max for colour scale
         const vals = geojson.features
           .map(f => f.properties.value)
           .filter(v => v !== null && v !== undefined);
@@ -432,10 +461,9 @@ buildCharts(
           maxVal = Math.max.apply(null, vals);
         }
 
-        // Pre-mark _value so renderGeoJSON uses API values directly
         geojson.features.forEach(function (f) {
           f.properties[newNameProp] = f.properties[newNameProp] || "";
-          f.properties._value = f.properties.value;
+          f.properties._value    = f.properties.value;
           f.properties._dispName = (f.properties[newNameProp] || "").trim();
         });
 

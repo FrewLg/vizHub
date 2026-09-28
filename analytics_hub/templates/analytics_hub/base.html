@@ -434,7 +434,7 @@
         <!-- Faceted Search Sidebar -->
         <aside id="sidebar" class="flex flex-col transition-all duration-300 z-20">
             <div class="sidebar-header">
-                <h2>🔍 &nbsp;Filters</h2>
+                <h2> &nbsp;Filters</h2>
                 <button onclick="toggleFacets()">✕</button>
             </div>
 
@@ -444,10 +444,10 @@
     <div>
         <label class="filter-label">Geography Level</label>
         <select name="geography" id="f-geography" class="filter-select">
-            <option value="national"  {% if selected_geography == 'national'  %}selected{% endif %}>🌍 National</option>
-            <option value="regional"  {% if selected_geography == 'regional'  %}selected{% endif %}>🗺 Regional</option>
-            <option value="zone"      {% if selected_geography == 'zone'      %}selected{% endif %}>📍 Zone</option>
-            <option value="woreda"    {% if selected_geography == 'woreda'    %}selected{% endif %}>📌 Woreda</option>
+            <option value="national"  {% if selected_geography == 'national'  %}selected{% endif %}> National</option>
+            <option value="regional"  {% if selected_geography == 'regional'  %}selected{% endif %}> Regional</option>
+            <option value="zone"      {% if selected_geography == 'zone'      %}selected{% endif %}> Zone</option>
+            <option value="woreda"    {% if selected_geography == 'woreda'    %}selected{% endif %}> Woreda</option>
         </select>
     </div>
 
@@ -477,7 +477,7 @@
             <span id="slider-label-to">{{ selected_year_to }}</span>
         </div>
         <div id="year-range-slider" style="margin:0 2px;"></div>
-        <div style="height:14px;"></div>{# space for pips #}
+        <div style="height:12px;"></div>{# space for pips #}
     </div>
 
     <hr class="filter-divider">
