@@ -8,6 +8,7 @@ urlpatterns = [
     path('export-pdf/', views.download_pdf_report, name='export_pdf'), 
     path('api/chatbot/', views.ai_chatbot_api, name='ai_chatbot_api'),
     path('api/geojson/', views.geojson_api, name='geojson_api'),
+    path('api/chart-data/', views.chart_data_api, name='chart_data_api'),
     path(
         "",
         ObservationBarChartView.as_view(),

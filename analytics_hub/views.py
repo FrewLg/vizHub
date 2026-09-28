@@ -279,7 +279,89 @@ class ObservationBarChartView(TemplateView):
         return context    
 
 
-# ── /api/geojson/?level=<regional|zone|woreda|national> ──────────────────────
+# ── /api/chart-data/ — JSON endpoint for live filter updates ─────────────────
+def chart_data_api(request):
+    """
+    Returns bar chart, line chart, table, and indicator name as JSON.
+    Accepts the same GET params as ObservationBarChartView.
+    Called by the live-filter JS on every sidebar change — no page reload needed.
+    """
+    from django.db.models import Sum
+
+    geography    = request.GET.get("geography", "regional")
+    indicator_id = request.GET.get("indicator") or None
+    year_from    = request.GET.get("year_from")  or None
+    year_to      = request.GET.get("year_to")    or None
+    location_id  = request.GET.get("location")   or None
+    cause_id     = request.GET.get("cause")      or None
+    sex_id       = request.GET.get("sex")        or None
+
+    all_years = sorted(
+        Observation.objects.values_list("year", flat=True).distinct()
+    )
+    min_year = all_years[0]  if all_years else 2000
+    max_year = all_years[-1] if all_years else 2025
+    active_from = int(year_from) if year_from else min_year
+    active_to   = int(year_to)   if year_to   else max_year
+
+    # Indicator name
+    indicator_name = "-"
+    if indicator_id:
+        try:
+            indicator_name = Indicator.objects.get(pk=indicator_id).name
+        except Indicator.DoesNotExist:
+            pass
+
+    qs = Observation.objects.select_related("location", "indicator")
+
+    if geography == "national":
+        qs = qs.filter(location__level__iexact="country")
+    elif geography == "regional":
+        qs = qs.filter(location__level__in=["regional", "region", "Regional"])
+    elif geography == "zone":
+        qs = qs.filter(location__level__iexact="zone")
+    elif geography == "woreda":
+        qs = qs.filter(location__level__iexact="woreda")
+
+    if indicator_id:
+        qs = qs.filter(indicator_id=indicator_id)
+    qs = qs.filter(year__gte=active_from, year__lte=active_to)
+    if location_id:
+        qs = qs.filter(location_id=location_id)
+    if cause_id:
+        qs = qs.filter(cause_id=cause_id)
+    if sex_id:
+        qs = qs.filter(sex_id=sex_id)
+
+    # Bar chart: aggregate by location
+    bar_rows = (
+        qs.values("location__name")
+          .annotate(total=Sum("value"))
+          .order_by("-total")
+    )
+    bar_data = [
+        {"label": r["location__name"], "value": float(r["total"] or 0)}
+        for r in bar_rows if r["location__name"]
+    ]
+
+    # Line chart: aggregate by year
+    line_rows = (
+        qs.values("year")
+          .annotate(total=Sum("value"))
+          .order_by("year")
+    )
+    line_data = [
+        {"year": str(r["year"]), "value": float(r["total"] or 0)}
+        for r in line_rows if r["year"]
+    ]
+
+    return JsonResponse({
+        "indicator_name": indicator_name,
+        "bar":  bar_data,
+        "line": line_data,
+    })
+
+
 def geojson_api(request):
     """
     Serves a GeoJSON FeatureCollection for the requested admin level,

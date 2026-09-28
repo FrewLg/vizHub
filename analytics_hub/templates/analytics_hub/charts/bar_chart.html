@@ -8,125 +8,93 @@ Observation by Location
 {% block chart_content %}
 
 <div class="bg-white dark:bg-gray-800 p-4 rounded">
-    <div style="height:500px;">
-        <div class="alert alert-info">
-     <!-- Year: {{ selected_year }} -->
-</div>
-
+    <div style="height:420px;">
         <canvas id="barChart"></canvas>
     </div>
-    <div class="mt-5">
-    <h5>Trend Over Time</h5>
-    <canvas id="lineChart"></canvas>
+    <div class="mt-5 pb-2">
+        <h5 class="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Trend Over Time</h5>
+        <canvas id="lineChart" style="max-height:160px;"></canvas>
+    </div>
 </div>
-</div>
 
-{{ chart_labels|json_script:"chart-labels" }}
-{{ chart_values|json_script:"chart-values" }}
-<script src="https://cdn.jsdelivr.net/npm/chart.js" ></script> 
- 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-new Chart(document.getElementById('lineChart'), {
-    type: 'line',
-    data: {
-        // labels: {{ line_chart_labels|safe }},
-        labels: {{ line_chart_labels|safe }},
-        datasets: [{
-            label: 'Trend',
-            data: {{ line_chart_values|safe }},
-            borderColor: '#2563eb',
-            backgroundColor: 'rgba(37,99,235,0.1)',
-            fill: true,
-            tension: 0.3
-        }]
-    },
-    options: {
-        responsive: true,
-        scales: {
-            y: {
-                beginAtZero: true
-            }
-        }
-    }
-});
-</script>
+// ── Kept in module scope so live updates can call .update() ───────────────
+let barChart  = null;
+let lineChart = null;
 
-<script>
+function buildCharts(barLabels, barValues, lineLabels, lineValues, indicatorName) {
 
-document.addEventListener("DOMContentLoaded", function () {
-
-    const labels = JSON.parse(
-        document.getElementById("chart-labels").textContent
-    );
-
-    const values = JSON.parse(
-        document.getElementById("chart-values").textContent
-    );
-
-    const ctx = document.getElementById("barChart");
-
-    new Chart(ctx, {
-        type: "bar",
-
-        data: {
-        labels: {{ chart_labels|safe }},
-            datasets: [{
-            label: '{{ indicator_name }}',
-            data: {{ chart_values|safe }},
-                backgroundColor: [
-                    "rgba(59, 130, 246, 0.7)"
-                ],
-
-                borderColor: [
-                    "rgba(59, 130, 246, 1)"
-                ],
-
-                borderWidth: 1
-            }]
-        },
-
-        options: {
-
-            responsive: true,
-
-            maintainAspectRatio: false,
-
-            plugins: {
-                legend: {
-                    display: true
-                },
-                   title: {
-            display: true,
-            text: '{{ indicator_name }} by Location'
-        }
+    // ── Bar chart ─────────────────────────────────────────────────────
+    if (barChart) {
+        barChart.data.labels              = barLabels;
+        barChart.data.datasets[0].data   = barValues;
+        barChart.data.datasets[0].label  = indicatorName;
+        barChart.options.plugins.title.text = indicatorName + ' by Location';
+        barChart.update();
+    } else {
+        barChart = new Chart(document.getElementById('barChart'), {
+            type: 'bar',
+            data: {
+                labels: barLabels,
+                datasets: [{
+                    label: indicatorName,
+                    data: barValues,
+                    backgroundColor: 'rgba(59,130,246,0.7)',
+                    borderColor:     'rgba(59,130,246,1)',
+                    borderWidth: 1
+                }]
             },
-
-            scales: {
-
-                x: {
-                    ticks: {
-                        maxRotation: 45,
-                        minRotation: 45
-                    }
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: true },
+                    title:  { display: true, text: indicatorName + ' by Location' }
                 },
-
-                y: {
-                    beginAtZero: true,
-
-                    title: {
-                        display: true,
-                        text: "Value"
-                    }
+                scales: {
+                    x: { ticks: { maxRotation: 45, minRotation: 45 } },
+                    y: { beginAtZero: true, title: { display: true, text: 'Value' } }
                 }
-
             }
+        });
+    }
 
-        }
+    // ── Line chart ────────────────────────────────────────────────────
+    if (lineChart) {
+        lineChart.data.labels             = lineLabels;
+        lineChart.data.datasets[0].data  = lineValues;
+        lineChart.update();
+    } else {
+        lineChart = new Chart(document.getElementById('lineChart'), {
+            type: 'line',
+            data: {
+                labels: lineLabels,
+                datasets: [{
+                    label: 'Trend',
+                    data: lineValues,
+                    borderColor: '#2563eb',
+                    backgroundColor: 'rgba(37,99,235,0.1)',
+                    fill: true,
+                    tension: 0.3
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+    }
+}
 
-    });
-
-});
-
+// Boot with server-rendered data (no extra round-trip on first load)
+buildCharts(
+    {{ chart_labels|safe }},
+    {{ chart_values|safe }},
+    {{ line_chart_labels|safe }},
+    {{ line_chart_values|safe }},
+    "{{ indicator_name|escapejs }}"
+);
 </script>
 
 {% endblock %}
@@ -134,31 +102,21 @@ document.addEventListener("DOMContentLoaded", function () {
 {% block table_content %}
 
 <div class="overflow-x-auto">
-    <table class="min-w-full">
-
+    <table id="data-table" class="min-w-full">
         <thead>
             <tr>
                 <th class="p-2 text-left">Location</th>
                 <th class="p-2 text-right">Value</th>
             </tr>
         </thead>
-
         <tbody>
-
         {% for row in data %}
             <tr class="border-t">
-                <td class="p-2">
-                    {{ row.label }}
-                </td>
-
-                <td class="p-2 text-right">
-                    {{ row.value }}
-                </td>
+                <td class="p-2">{{ row.label }}</td>
+                <td class="p-2 text-right">{{ row.value }}</td>
             </tr>
         {% endfor %}
-
         </tbody>
-
     </table>
 </div>
 
@@ -419,7 +377,6 @@ document.addEventListener("DOMContentLoaded", function () {
   document.querySelectorAll(".viz-tab").forEach(function (btn) {
     btn.addEventListener("click", function () {
       if (btn.dataset.target === "map-panel") {
-        // Small delay lets the browser finish un-hiding the panel
         setTimeout(function () {
           map.invalidateSize();
           if (_pendingGeojson) {
@@ -430,6 +387,54 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     });
   });
+
+  // ── refreshMap(params) — called by live-filter engine ─────────────────
+  // Fetches new GeoJSON (with values merged) and re-renders the layer.
+  window.refreshMap = function (params) {
+    // Translate geography param → level param expected by geojson_api
+    const geography = params.get("geography") || "regional";
+    const apiParams = new URLSearchParams(params);
+    apiParams.set("level", geography);
+
+    const USE_API_NOW = (geography === "woreda");
+
+    if (USE_API_NOW) {
+      document.getElementById("map-loading").classList.remove("hidden");
+    }
+
+    fetch("/api/geojson/?" + apiParams.toString())
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then(function (geojson) {
+        // Update NAME_PROP to match the new geography
+        const propMap = {
+          national: "adm0_name", regional: "adm1_name",
+          zone:     "adm2_name", woreda:   "adm3_name"
+        };
+        const newNameProp = propMap[geography] || "adm1_name";
+
+        // Compute new min/max for colour scale
+        const vals = geojson.features
+          .map(f => f.properties.value)
+          .filter(v => v !== null && v !== undefined);
+        if (vals.length) {
+          minVal = Math.min.apply(null, vals);
+          maxVal = Math.max.apply(null, vals);
+        }
+
+        // Pre-mark _value so renderGeoJSON uses API values directly
+        geojson.features.forEach(function (f) {
+          f.properties[newNameProp] = f.properties[newNameProp] || "";
+          f.properties._value = f.properties.value;
+          f.properties._dispName = (f.properties[newNameProp] || "").trim();
+        });
+
+        renderGeoJSON(geojson);
+      })
+      .catch(err => {
+        console.error("Map refresh error:", err);
+        document.getElementById("map-loading").classList.add("hidden");
+      });
+  };
 
 }());
 </script>

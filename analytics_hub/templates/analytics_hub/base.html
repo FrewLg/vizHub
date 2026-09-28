@@ -30,6 +30,8 @@
      <!-- html2canvas and jsPDF for PDF report generation -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+       <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.8.1/nouislider.min.css">
+
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 dark:text-gray-100 flex flex-col h-screen overflow-hidden transition-colors duration-200">
 
@@ -117,29 +119,18 @@
     <!-- Geography Level Selector -->
     <div>
         <label class="font-semibold block mb-1 text-gray-700 dark:text-gray-300">Geography Level</label>
-        <select name="geography" class="w-full border dark:border-gray-700 bg-white dark:bg-gray-900 p-1.5 rounded">
-            <option value="national" {% if selected_geography == 'national' %}selected{% endif %}>National</option>
-            <option value="regional" {% if selected_geography == 'regional' %}selected{% endif %}>Regional</option>
-            <option value="zone" {% if selected_geography == 'zone' %}selected{% endif %}>Zone</option>
-            <option value="woreda" {% if selected_geography == 'woreda' %}selected{% endif %}>Woreda</option>
+        <select name="geography" id="f-geography" class="w-full border dark:border-gray-700 bg-white dark:bg-gray-900 p-1.5 rounded">
+            <option value="national"  {% if selected_geography == 'national'  %}selected{% endif %}>National</option>
+            <option value="regional"  {% if selected_geography == 'regional'  %}selected{% endif %}>Regional</option>
+            <option value="zone"      {% if selected_geography == 'zone'      %}selected{% endif %}>Zone</option>
+            <option value="woreda"    {% if selected_geography == 'woreda'    %}selected{% endif %}>Woreda</option>
         </select>
     </div>
 
-    <!-- Topic Selector -->
-    <div>
-        <label class="font-semibold block mb-1 text-gray-700 dark:text-gray-300">Analysis Topic</label>
-        <select name="topic" class="w-full border dark:border-gray-700 bg-white dark:bg-gray-900 p-1.5 rounded">
-            <option value="">-- All Topics --</option>
-            {% for topic in topics %}
-            <option value="{{ topic.id }}" {% if selected_topic|slugify == topic.id|slugify %}selected{% endif %}>{{ topic.name }}</option>
-            {% endfor %}
-        </select>
-    </div>
-
-    <!-- Indicator Selector -->
+    <!-- Indicator Selector (Topic removed — results focused on indicator) -->
     <div>
         <label class="font-semibold block mb-1 text-gray-700 dark:text-gray-300">Indicator</label>
-        <select name="indicator" class="w-full border dark:border-gray-700 bg-white dark:bg-gray-900 p-1.5 rounded">
+        <select name="indicator" id="f-indicator" class="w-full border dark:border-gray-700 bg-white dark:bg-gray-900 p-1.5 rounded">
             <option value="">-- All Indicators --</option>
             {% for ind in indicators %}
             <option value="{{ ind.id }}" {% if selected_indicator|slugify == ind.id|slugify %}selected{% endif %}>{{ ind.name }}</option>
@@ -148,82 +139,23 @@
     </div>
 
     <!-- Year Range Slider -->
-    <div class="mb-2 pb-8 ">
+    <div class="mb-2 pb-8">
         <label class="font-semibold block mb-1 text-gray-700 dark:text-gray-300">Year Range</label>
-
-        {# Hidden inputs submitted with the form #}
         <input type="hidden" name="year_from" id="id_year_from" value="{{ selected_year_from }}">
         <input type="hidden" name="year_to"   id="id_year_to"   value="{{ selected_year_to }}">
-
-        {# Label row: shows current selection live #}
         <div class="flex justify-between text-[11px] text-blue-600 dark:text-blue-400 font-semibold mb-2">
             <span id="slider-label-from">{{ selected_year_from }}</span>
             <span>–</span>
             <span id="slider-label-to">{{ selected_year_to }}</span>
         </div>
-
-        {# The slider track #}
         <div id="year-range-slider" class="mx-1"></div>
-
-        {# Tick marks: one per available year #}
-        <!-- <div class="flex justify-between mt-2 text-[9px] text-gray-400 dark:text-gray-500 px-0.5">
-            {% for y in all_years %}
-            <span>{{ y }}</span>
-            {% endfor %}
-        </div> -->
     </div>
 
-    {# noUiSlider — lightweight dual-handle range slider, no API key, no build step #}
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.8.1/nouislider.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.8.1/nouislider.min.js"></script>
-    <script>
-    (function () {
-        const sliderEl  = document.getElementById("year-range-slider");
-        const inputFrom = document.getElementById("id_year_from");
-        const inputTo   = document.getElementById("id_year_to");
-        const labelFrom = document.getElementById("slider-label-from");
-        const labelTo   = document.getElementById("slider-label-to");
-
-        const minYear = {{ slider_min_year }};
-        const maxYear = {{ slider_max_year }};
-        const fromVal = {{ selected_year_from }};
-        const toVal   = {{ selected_year_to }};
-        // All available year values for snapping
-        const snapYears = {{ all_years|safe }};
-
-        noUiSlider.create(sliderEl, {
-            start:   [fromVal, toVal],
-            connect: true,            // fill between handles
-            step:    1,
-            range:   { min: minYear, max: maxYear },
-            snap:    false,
-            pips: {
-                mode: "values",
-                values: snapYears,
-                density: 100,
-                stepped: true,
-            },
-            tooltips: [
-                { to: v => Math.round(v) },
-                { to: v => Math.round(v) },
-            ],
-        });
-
-        sliderEl.noUiSlider.on("update", function (values) {
-            const from = Math.round(values[0]);
-            const to   = Math.round(values[1]);
-            inputFrom.value  = from;
-            inputTo.value    = to;
-            labelFrom.textContent = from;
-            labelTo.textContent   = to;
-        });
-    }());
-    </script>
-
+ 
     <!-- Location Selector -->
     <div>
         <label class="font-semibold block mb-1 text-gray-700 dark:text-gray-300">Location</label>
-        <select name="location" class="w-full border dark:border-gray-700 bg-white dark:bg-gray-900 p-1.5 rounded">
+        <select name="location" id="f-location" class="w-full border dark:border-gray-700 bg-white dark:bg-gray-900 p-1.5 rounded">
             <option value="">-- All Locations --</option>
             {% for loc in locations %}
             <option value="{{ loc.id }}" {% if selected_location|slugify == loc.id|slugify %}selected{% endif %}>{{ loc.name }}</option>
@@ -231,10 +163,10 @@
         </select>
     </div>
 
-    <!-- Cause Selector (Optional/Conditional) -->
+    <!-- Disease / Cause Selector -->
     <div>
-        <label class="font-semibold block mb-1 text-gray-700 dark:text-gray-300">Disease </label>
-        <select name="cause" class="w-full border dark:border-gray-700 bg-white dark:bg-gray-900 p-1.5 rounded">
+        <label class="font-semibold block mb-1 text-gray-700 dark:text-gray-300">Disease</label>
+        <select name="cause" id="f-cause" class="w-full border dark:border-gray-700 bg-white dark:bg-gray-900 p-1.5 rounded">
             <option value="">-- All Causes --</option>
             {% for cause in causes %}
             <option value="{{ cause.id }}" {% if selected_cause|slugify == cause.id|slugify %}selected{% endif %}>{{ cause.name }}</option>
@@ -242,12 +174,10 @@
         </select>
     </div>
 
-   
- 
     <!-- Sex Selector -->
     <div>
         <label class="font-semibold block mb-1 text-gray-700 dark:text-gray-300">Sex</label>
-        <select name="sex" class="w-full border dark:border-gray-700 bg-white dark:bg-gray-900 p-1.5 rounded">
+        <select name="sex" id="f-sex" class="w-full border dark:border-gray-700 bg-white dark:bg-gray-900 p-1.5 rounded">
             <option value="">-- Both / All --</option>
             {% for s in sexes %}
             <option value="{{ s.id }}" {% if selected_sex|slugify == s.id|slugify %}selected{% endif %}>{{ s.name }}</option>
@@ -255,12 +185,18 @@
         </select>
     </div>
 
-    
+    <!-- Loading indicator shown while fetch is in flight -->
+    <div id="filter-loading" class="hidden flex items-center gap-2 text-blue-500 text-[11px] py-1">
+        <svg class="animate-spin h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+        </svg>
+        Updating…
+    </div>
 
-    <!-- Actions: Apply & Reset -->
-    <div class="grid grid-cols-2 gap-2 pt-2">
-        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded font-semibold transition shadow">Apply Filters</button>
-        <a href="{% url 'dashboard' %}" class="w-full text-center bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 py-2 rounded font-semibold transition block">Reset</a>
+    <!-- Reset only (Apply removed — results update live) -->
+    <div class="pt-1">
+        <a href="{% url 'dashboard' %}" class="w-full text-center bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 py-2 rounded font-semibold transition block">Reset Filters</a>
     </div>
 </form>
         </aside>
@@ -397,11 +333,149 @@
             pdf.save('ethiopia-analytics-report.pdf');
         }
  
- 
  </script>
-  <script src="https://d3js.org/d3.v7.min.js"></script>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.8.1/nouislider.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.8.1/nouislider.min.js"></script>
+
 <script>
-//  {% static 'analytics_hub/js/sidebar_filters.js' %}  
+// ═══════════════════════════════════════════════════════════════════════════
+//  LIVE FILTER ENGINE
+//  Fires /api/chart-data/ on every sidebar change, updates charts + table.
+//  Fires /api/geojson/   on geography/filter change, updates the map layer.
+//  No page reload needed.
+// ═══════════════════════════════════════════════════════════════════════════
+(function () {
+    "use strict";
+
+    // ── noUiSlider init ────────────────────────────────────────────────
+    const sliderEl  = document.getElementById("year-range-slider");
+    const inputFrom = document.getElementById("id_year_from");
+    const inputTo   = document.getElementById("id_year_to");
+    const labelFrom = document.getElementById("slider-label-from");
+    const labelTo   = document.getElementById("slider-label-to");
+
+    // Values injected by Django template (integers)
+    const MIN_YEAR   = {{ slider_min_year }};
+    const MAX_YEAR   = {{ slider_max_year }};
+    const FROM_VAL   = {{ selected_year_from }};
+    const TO_VAL     = {{ selected_year_to }};
+    const SNAP_YEARS = {{ all_years|safe }};
+
+    if (sliderEl && typeof noUiSlider !== "undefined") {
+        noUiSlider.create(sliderEl, {
+            start:   [FROM_VAL, TO_VAL],
+            connect: true,
+            step:    1,
+            range:   { min: MIN_YEAR, max: MAX_YEAR },
+            tooltips: [
+                { to: v => Math.round(v) },
+                { to: v => Math.round(v) }
+            ],
+            pips: {
+                mode: "values",
+                values: SNAP_YEARS,
+                density: 100,
+                stepped: true
+            }
+        });
+
+        // Update hidden inputs + labels on every slider move (debounced below)
+        sliderEl.noUiSlider.on("update", function (values) {
+            const from = Math.round(parseFloat(values[0]));
+            const to   = Math.round(parseFloat(values[1]));
+            inputFrom.value = from;
+            inputTo.value   = to;
+            if (labelFrom) labelFrom.textContent = from;
+            if (labelTo)   labelTo.textContent   = to;
+        });
+        // Fire live update only when user releases the handle
+        sliderEl.noUiSlider.on("change", debounce(triggerUpdate, 300));
+    }
+
+    // ── Collect current filter state ────────────────────────────────────
+    function getParams() {
+        const form = document.getElementById("filter-form");
+        if (!form) return new URLSearchParams();
+        const fd = new FormData(form);
+        const p  = new URLSearchParams();
+        for (const [k, v] of fd.entries()) {
+            if (v !== "") p.set(k, v);
+        }
+        return p;
+    }
+
+    // ── Debounce helper ─────────────────────────────────────────────────
+    function debounce(fn, ms) {
+        let timer;
+        return function (...args) {
+            clearTimeout(timer);
+            timer = setTimeout(() => fn.apply(this, args), ms);
+        };
+    }
+
+    // ── Loading state ──────────────────────────────────────────────────
+    const loadingEl = document.getElementById("filter-loading");
+    function setLoading(on) {
+        if (loadingEl) loadingEl.classList.toggle("hidden", !on);
+    }
+
+    // ── Main update: fetch chart data + refresh map ─────────────────────
+    function triggerUpdate() {
+        const params = getParams();
+
+        // 1. Update browser URL bar without reloading
+        history.replaceState(null, "", "?" + params.toString());
+
+        setLoading(true);
+
+        // 2. Fetch updated chart / table data
+        fetch("/api/chart-data/?" + params.toString())
+            .then(r => r.ok ? r.json() : Promise.reject(r.status))
+            .then(data => {
+                // ── Update charts (buildCharts defined in bar_chart.html) ──
+                if (typeof buildCharts === "function") {
+                    const barLabels  = data.bar.map(d => d.label);
+                    const barValues  = data.bar.map(d => d.value);
+                    const lineLabels = data.line.map(d => d.year);
+                    const lineValues = data.line.map(d => d.value);
+                    buildCharts(barLabels, barValues, lineLabels, lineValues,
+                                data.indicator_name);
+                }
+
+                // ── Update data table ─────────────────────────────────────
+                const tbody = document.querySelector("#data-table tbody");
+                if (tbody) {
+                    tbody.innerHTML = data.bar.map(row =>
+                        `<tr class="border-t">
+                           <td class="p-2">${row.label}</td>
+                           <td class="p-2 text-right">${row.value.toLocaleString(undefined, {maximumFractionDigits:2})}</td>
+                         </tr>`
+                    ).join("");
+                }
+
+                // ── Update indicator title ────────────────────────────────
+                const titleEl = document.querySelector(".viz-description strong");
+                if (titleEl) titleEl.textContent = data.indicator_name;
+            })
+            .catch(err => console.error("Chart data fetch error:", err))
+            .finally(() => setLoading(false));
+
+        // 3. Refresh map via geojson_api (uses same params + level=geography)
+        if (typeof refreshMap === "function") {
+            refreshMap(params);
+        }
+    }
+
+    // ── Attach change listeners to every select ─────────────────────────
+    ["f-geography", "f-indicator", "f-location", "f-cause", "f-sex"]
+        .forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener("change", debounce(triggerUpdate, 150));
+        });
+
+}());
 </script>
 
 </body>
