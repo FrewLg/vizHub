@@ -7,6 +7,7 @@ urlpatterns = [
     path('upload/', views.upload_view, name='upload_data'),
     path('export-pdf/', views.download_pdf_report, name='export_pdf'), 
     path('api/chatbot/', views.ai_chatbot_api, name='ai_chatbot_api'),
+    path('api/geojson/', views.geojson_api, name='geojson_api'),
     path(
         "",
         ObservationBarChartView.as_view(),

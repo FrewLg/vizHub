@@ -23,7 +23,28 @@ from .models import (
     Sex,
     VisualizationConfig,
     AgeGroup,
-    FacilityCategory, )
+    FacilityCategory,
+    LocationGeometry,
+)
+
+# ── GeoJSON static file map (geography param → filename in static/geojson/) ──
+_GEOJSON_FILES = {
+    "national":  ("admin0_country.geojson",  "adm0_name"),
+    "regional":  ("admin1_regions.geojson",  "adm1_name"),
+    "zone":      ("admin2_zones.geojson",    "adm2_name"),
+    "woreda":    ("admin3_woredas.geojson",  "adm3_name"),
+}
+_GEOJSON_DIR = Path(settings.BASE_DIR) / "static" / "geojson"
+
+
+def _load_geojson(geography: str) -> tuple[str, str]:
+    """Return (raw_geojson_string, name_prop) for the requested geography."""
+    fname, name_prop = _GEOJSON_FILES.get(geography, _GEOJSON_FILES["regional"])
+    path = _GEOJSON_DIR / fname
+    try:
+        return path.read_text(encoding="utf-8"), name_prop
+    except FileNotFoundError:
+        return '{"type":"FeatureCollection","features":[]}', name_prop
 
 
 # class ObservationBarChartView(TemplateView):
@@ -226,22 +247,81 @@ class ObservationBarChartView(TemplateView):
         context["line_chart_labels"] = [str(row["year"]) for row in linedata if row["year"]]
         context["line_chart_values"] = [float(row["total"] or 0) for row in linedata if row["year"]]
 
-        # ── Map: load GeoJSON from static file and pass to template ──────────
-        geojson_path = Path(settings.BASE_DIR) / "static" / "geojson" / "ethiopia_regions.geojson"
-        try:
-            context["map_geojson"] = geojson_path.read_text(encoding="utf-8")
-        except FileNotFoundError:
-            context["map_geojson"] = '{"type":"FeatureCollection","features":[]}'
-
-        # Tell the template which GeoJSON name property to use for matching
-        # adm2_name = zone level, adm1_name = regional level
-        if geography == "zone":
-            context["map_name_prop"] = "adm2_name"
-        else:
-            # regional / national both map against adm1_name
-            context["map_name_prop"] = "adm1_name"
+        # ── Map: load the right GeoJSON file per geography selection ─────────
+        map_geojson, map_name_prop = _load_geojson(geography)
+        context["map_geojson"]   = map_geojson
+        context["map_name_prop"] = map_name_prop
+        # Woreda file is large (1.8 MB) — serve it via the API instead of inline
+        context["map_use_api"]   = (geography == "woreda")
 
         return context    
+
+
+# ── /api/geojson/?level=<regional|zone|woreda|national> ──────────────────────
+def geojson_api(request):
+    """
+    Serves a GeoJSON FeatureCollection for the requested admin level,
+    optionally merged with aggregated observation values from the DB.
+
+    Query params:
+      level       — regional | zone | woreda | national  (default: regional)
+      indicator   — indicator pk  (optional, filters observations)
+      year        — year integer  (optional)
+      topic       — topic pk      (optional)
+      sex         — sex pk        (optional)
+      cause       — cause pk      (optional)
+    """
+    geography    = request.GET.get("level", "regional")
+    indicator_id = request.GET.get("indicator")
+    year         = request.GET.get("year")
+    topic_id     = request.GET.get("topic")
+    sex_id       = request.GET.get("sex")
+    cause_id     = request.GET.get("cause")
+
+    geojson_str, name_prop = _load_geojson(geography)
+    geojson = json.loads(geojson_str)
+
+    # Build value lookup from filtered observations
+    qs = Observation.objects.select_related("location")
+
+    if geography == "national":
+        qs = qs.filter(location__level__iexact="country")
+    elif geography == "regional":
+        qs = qs.filter(location__level__in=["regional", "region", "Regional"])
+    elif geography == "zone":
+        qs = qs.filter(location__level__iexact="zone")
+    elif geography == "woreda":
+        qs = qs.filter(location__level__iexact="woreda")
+
+    if indicator_id:
+        qs = qs.filter(indicator_id=indicator_id)
+    if year:
+        qs = qs.filter(year=year)
+    if topic_id:
+        qs = qs.filter(indicator__topic_id=topic_id)
+    if sex_id:
+        qs = qs.filter(sex_id=sex_id)
+    if cause_id:
+        qs = qs.filter(cause_id=cause_id)
+
+    data_rows = (
+        qs.values("location__name")
+          .annotate(total=Sum("value"))
+    )
+    data_map = {
+        row["location__name"].strip().lower(): float(row["total"] or 0)
+        for row in data_rows
+        if row["location__name"]
+    }
+
+    # Attach values to each feature in-place
+    for feature in geojson.get("features", []):
+        raw_name = feature["properties"].get(name_prop) or ""
+        feature["properties"]["value"] = data_map.get(raw_name.strip().lower())
+
+    return JsonResponse(geojson, safe=False)
+
+
 def dashboard_view(request):
     if request.method == "POST" and "excel_file" in request.FILES:
         form = ExcelUploadForm(request.POST, request.FILES)

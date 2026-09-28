@@ -165,31 +165,62 @@ document.addEventListener("DOMContentLoaded", function () {
 {% endblock %}
 
 {% block map_content %}
-{# ── Leaflet CSS/JS (loaded once, only when map tab is active) ─────────── #}
+{# ── Leaflet CSS/JS ────────────────────────────────────────────────────── #}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-{# ── Observation data serialised from Django context ─────────────────── #}
+{# ── Observation data (used for inline GeoJSON levels) ────────────────── #}
 {{ data|json_script:"observation-data" }}
 
-{# ── The name property the JS should use to match features to DB records #}
-{# map_name_prop is set by the view: "adm2_name" for zone, "adm1_name" otherwise #}
-<script id="map-config" type="application/json">
-  { "nameProp": "{{ map_name_prop }}", "geography": "{{ selected_geography }}" }
-</script>
+{# ── Map config injected by the view ─────────────────────────────────── #}
+<script id="map-config" type="application/json">{
+  "nameProp"  : "{{ map_name_prop }}",
+  "geography" : "{{ selected_geography }}",
+  "useApi"    : {% if map_use_api %}true{% else %}false{% endif %},
+  "apiParams" : {
+    "level"     : "{{ selected_geography }}",
+    "indicator" : "{{ selected_indicator|default:'' }}",
+    "year"      : "{{ selected_year|default:'' }}",
+    "topic"     : "{{ selected_topic|default:'' }}",
+    "sex"       : "{{ selected_sex|default:'' }}",
+    "cause"     : "{{ selected_cause|default:'' }}"
+  }
+}</script>
 
 {# ── Map container ─────────────────────────────────────────────────────── #}
 <div class="relative">
   <div id="choropleth-map" class="w-full rounded-lg shadow-inner" style="height:520px;"></div>
 
+  {# Loading spinner — visible only while the API fetch is in flight #}
+  <div id="map-loading"
+       class="absolute inset-0 flex items-center justify-center
+              bg-white/60 dark:bg-gray-900/60 rounded-lg z-[1100] hidden">
+    <svg class="animate-spin h-10 w-10 text-blue-500" xmlns="http://www.w3.org/2000/svg"
+         fill="none" viewBox="0 0 24 24">
+      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+      <path  class="opacity-75" fill="currentColor"
+             d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+    </svg>
+  </div>
+
   {# Legend ─────────────────────────────────────────────────────────────── #}
   <div id="map-legend"
-       class="absolute bottom-6 right-4 bg-white dark:bg-gray-800 border border-gray-200
-              dark:border-gray-600 rounded-lg shadow p-3 text-xs z-[1000] min-w-[140px]">
-    <p class="font-semibold mb-2 text-gray-700 dark:text-gray-200">{{ indicator_name }}</p>
-    <div id="legend-items"></div>
-    <p class="mt-2 text-gray-400 italic text-[10px]">No data</p>
-    <div class="w-full h-3 rounded mt-0.5" style="background:#e5e7eb;"></div>
+       class="absolute bottom-6 right-4 bg-white dark:bg-gray-800 border
+              border-gray-200 dark:border-gray-600 rounded-lg shadow p-3
+              text-xs z-[1000] min-w-[150px]">
+    <p class="font-semibold mb-2 text-gray-700 dark:text-gray-200 truncate"
+       title="{{ indicator_name }}">{{ indicator_name }}</p>
+    <div id="legend-gradient" class="w-full h-4 rounded mb-1"
+         style="background:linear-gradient(to right,#eff3ff,#084594);"></div>
+    <div class="flex justify-between text-gray-500 dark:text-gray-400">
+      <span id="legend-min">0</span>
+      <span id="legend-max">–</span>
+    </div>
+    <div class="flex items-center gap-1.5 mt-2">
+      <span class="inline-block w-4 h-4 rounded-sm flex-shrink-0"
+            style="background:#e5e7eb;border:1px solid #d1d5db;"></span>
+      <span class="text-gray-500 dark:text-gray-400">No data</span>
+    </div>
   </div>
 </div>
 
@@ -197,144 +228,193 @@ document.addEventListener("DOMContentLoaded", function () {
 (function () {
   "use strict";
 
-  // ── 1. Read config injected by Django ──────────────────────────────────
-  const cfg    = JSON.parse(document.getElementById("map-config").textContent);
-  const NAME_PROP = cfg.nameProp;   // "adm2_name" or "adm1_name"
+  // ── Config ────────────────────────────────────────────────────────────
+  const cfg      = JSON.parse(document.getElementById("map-config").textContent);
+  const NAME_PROP = cfg.nameProp;   // adm0_name | adm1_name | adm2_name | adm3_name
+  const USE_API   = cfg.useApi;     // true for woreda (large file)
 
-  // ── 2. Build value lookup from Django observation data ─────────────────
-  const observations = JSON.parse(
-    document.getElementById("observation-data").textContent
-  );
-
-  // dataMap: { "tigray": 4200.0, "afar": 1150.0, … }
-  const dataMap = {};
-  let minVal = Infinity, maxVal = -Infinity;
-
-  observations.forEach(function (item) {
-    if (!item.label) return;
-    const key = item.label.trim().toLowerCase();
-    dataMap[key] = item.value;
-    if (item.value < minVal) minVal = item.value;
-    if (item.value > maxVal) maxVal = item.value;
-  });
-
-  if (!isFinite(minVal)) { minVal = 0; maxVal = 100; }
-
-  // ── 3. Colour helpers ──────────────────────────────────────────────────
-  // Seven-class sequential (light → dark) palette – colourblind-friendly
+  // ── Colour scale (light → dark blue, 7 stops) ─────────────────────────
   const PALETTE = [
     "#eff3ff","#c6dbef","#9ecae1","#6baed6",
     "#4292c6","#2171b5","#084594"
   ];
+  let minVal = 0, maxVal = 100;
 
   function getColor(value) {
-    if (value === undefined || value === null) return "#e5e7eb"; // no-data grey
+    if (value === undefined || value === null) return "#e5e7eb";
     const ratio = maxVal === minVal
-      ? 0.5
-      : (value - minVal) / (maxVal - minVal);
-    const idx = Math.min(
-      Math.floor(ratio * PALETTE.length),
-      PALETTE.length - 1
-    );
-    return PALETTE[idx];
+      ? 0.5 : (value - minVal) / (maxVal - minVal);
+    return PALETTE[Math.min(Math.floor(ratio * PALETTE.length), PALETTE.length - 1)];
   }
 
-  // ── 4. Initialise Leaflet map ──────────────────────────────────────────
-  const map = L.map("choropleth-map", { zoomControl: true })
-               .setView([9.145, 40.49], 6);
-
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    attribution: "&copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a>",
-    opacity: 0.4
-  }).addTo(map);
-
-  // ── 5. Parse GeoJSON that Django embedded ─────────────────────────────
-  //   map_geojson is the raw file contents passed by the view
-  let geojsonData;
-  try {
-    geojsonData = JSON.parse('{{ map_geojson|escapejs }}');
-  } catch (e) {
-    console.error("VizHub: could not parse map_geojson", e);
-    return;
+  function updateLegend() {
+    document.getElementById("legend-min").textContent =
+      minVal.toLocaleString(undefined, { maximumFractionDigits: 0 });
+    document.getElementById("legend-max").textContent =
+      maxVal.toLocaleString(undefined, { maximumFractionDigits: 0 });
   }
 
-  // ── 6. Attach data values to each feature ─────────────────────────────
-  geojsonData.features.forEach(function (f) {
-    const rawName = f.properties[NAME_PROP] || "";
-    f.properties._value    = dataMap[rawName.trim().toLowerCase()];
-    f.properties._dispName = rawName;
+  // ── Initialise Leaflet ────────────────────────────────────────────────
+  // Use CARTO Positron tiles — no API key needed, no 403/rate-limit issues
+  const map = L.map("choropleth-map", {
+    zoomControl: true,
+    // Start with Ethiopia's bounding box; re-fitted once GeoJSON loads
+    center: [9.145, 40.49],
+    zoom: 6
   });
 
-  // ── 7. Layer styling ──────────────────────────────────────────────────
-  function featureStyle(feature) {
-    return {
-      fillColor  : getColor(feature.properties._value),
-      fillOpacity: 0.8,
-      color      : "#6b7280",
-      weight     : 0.8,
-      opacity    : 1
-    };
+  L.tileLayer(
+    "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+    {
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 19,
+      crossOrigin: true
+    }
+  ).addTo(map);
+
+  let geoLayer = null;
+  let _pendingGeojson = null; // stored if render happens before tab is visible
+
+  function _fitBounds() {
+    if (geoLayer && geoLayer.getBounds().isValid()) {
+      map.fitBounds(geoLayer.getBounds(), { padding: [20, 20] });
+    }
   }
 
-  function onEachFeature(feature, layer) {
-    const name  = feature.properties._dispName || "Unknown";
-    const val   = feature.properties._value;
-    const label = val !== undefined
-      ? Number(val).toLocaleString(undefined, { maximumFractionDigits: 2 })
-      : "No data";
+  // ── Render a FeatureCollection on the map ─────────────────────────────
+  function renderGeoJSON(geojson) {
+    if (geoLayer) { map.removeLayer(geoLayer); }
 
-    layer.bindTooltip(
-      `<strong class="text-sm">${name}</strong><br/>
-       <span class="text-gray-500">Value:</span> ${label}`,
-      { sticky: true, opacity: 0.95 }
-    );
-
-    layer.on({
-      mouseover: function (e) {
-        e.target.setStyle({ weight: 2, color: "#1e3a8a", fillOpacity: 0.95 });
-        e.target.bringToFront();
-      },
-      mouseout: function (e) {
-        geoLayer.resetStyle(e.target);
+    // Attach display name & value to each feature
+    geojson.features.forEach(function (f) {
+      f.properties._dispName = (f.properties[NAME_PROP] || "").trim();
+      // _value may already be set (API path) or needs lookup (inline path)
+      if (f.properties._value === undefined) {
+        f.properties._value = dataMap[f.properties._dispName.toLowerCase()];
       }
     });
+
+    geoLayer = L.geoJSON(geojson, {
+      style: function (feature) {
+        return {
+          fillColor  : getColor(feature.properties._value),
+          fillOpacity: 0.8,
+          color      : "#6b7280",
+          weight     : 0.8,
+          opacity    : 1
+        };
+      },
+      onEachFeature: function (feature, layer) {
+        const name = feature.properties._dispName || "Unknown";
+        const val  = feature.properties._value;
+        const fmt  = val !== undefined && val !== null
+          ? Number(val).toLocaleString(undefined, { maximumFractionDigits: 2 })
+          : "No data";
+
+        layer.bindTooltip(
+          `<strong>${name}</strong><br/>Value: ${fmt}`,
+          { sticky: true, opacity: 0.97 }
+        );
+        layer.on({
+          mouseover: function (e) {
+            e.target.setStyle({ weight: 2.5, color: "#1e3a8a", fillOpacity: 0.95 });
+            e.target.bringToFront();
+          },
+          mouseout: function (e) { geoLayer.resetStyle(e.target); }
+        });
+      }
+    }).addTo(map);
+
+    updateLegend();
+    document.getElementById("map-loading").classList.add("hidden");
+
+    // If the map panel is currently visible, fit now; otherwise defer to tab click
+    const panel = document.getElementById("map-panel");
+    if (panel && !panel.classList.contains("hidden")) {
+      _fitBounds();
+    } else {
+      _pendingGeojson = true; // signal the tab handler to fit on reveal
+    }
   }
 
-  const geoLayer = L.geoJSON(geojsonData, {
-    style       : featureStyle,
-    onEachFeature: onEachFeature
-  }).addTo(map);
-
-  // Fit map to features
-  if (geoLayer.getBounds().isValid()) {
-    map.fitBounds(geoLayer.getBounds(), { padding: [10, 10] });
+  // ── Build dataMap from inline Django context (non-woreda levels) ───────
+  const observations = JSON.parse(
+    document.getElementById("observation-data").textContent
+  );
+  const dataMap = {};
+  observations.forEach(function (item) {
+    if (!item.label) return;
+    dataMap[item.label.trim().toLowerCase()] = item.value;
+    if (item.value < minVal || minVal === 0) minVal = item.value;
+    if (item.value > maxVal || maxVal === 100) maxVal = item.value;
+  });
+  // Recalculate from actual data
+  const vals = observations.map(function (d) { return d.value; });
+  if (vals.length) {
+    minVal = Math.min.apply(null, vals);
+    maxVal = Math.max.apply(null, vals);
   }
 
-  // ── 8. Render legend ──────────────────────────────────────────────────
-  const legendEl = document.getElementById("legend-items");
-  if (legendEl) {
-    const step = (maxVal - minVal) / PALETTE.length;
-    PALETTE.forEach(function (color, i) {
-      const lo = (minVal + i * step).toLocaleString(
-        undefined, { maximumFractionDigits: 0 });
-      const hi = (minVal + (i + 1) * step).toLocaleString(
-        undefined, { maximumFractionDigits: 0 });
-      legendEl.insertAdjacentHTML("beforeend",
-        `<div class="flex items-center gap-1.5 mb-1">
-           <span class="inline-block w-4 h-4 rounded-sm flex-shrink-0"
-                 style="background:${color};border:1px solid #d1d5db;"></span>
-           <span class="text-gray-600 dark:text-gray-300">${lo} – ${hi}</span>
-         </div>`
-      );
+  // ── Fetch and render ──────────────────────────────────────────────────
+  if (USE_API) {
+    // For woreda: fetch GeoJSON (with values pre-merged) from the API
+    document.getElementById("map-loading").classList.remove("hidden");
+
+    const params = new URLSearchParams();
+    Object.entries(cfg.apiParams).forEach(function ([k, v]) {
+      if (v) params.set(k, v);
     });
+
+    fetch("/api/geojson/?" + params.toString())
+      .then(function (r) {
+        if (!r.ok) throw new Error("GeoJSON API returned " + r.status);
+        return r.json();
+      })
+      .then(function (geojson) {
+        // Values already merged by the API — just read min/max
+        const apiVals = geojson.features
+          .map(function (f) { return f.properties.value; })
+          .filter(function (v) { return v !== null && v !== undefined; });
+        if (apiVals.length) {
+          minVal = Math.min.apply(null, apiVals);
+          maxVal = Math.max.apply(null, apiVals);
+        }
+        // Mark values as already set so renderGeoJSON skips the dataMap lookup
+        geojson.features.forEach(function (f) {
+          f.properties._value = f.properties.value;
+        });
+        renderGeoJSON(geojson);
+      })
+      .catch(function (err) {
+        console.error("VizHub map error:", err);
+        document.getElementById("map-loading").classList.add("hidden");
+      });
+
+  } else {
+    // For national/regional/zone: GeoJSON is inlined by the view
+    let geojsonData;
+    try {
+      geojsonData = JSON.parse('{{ map_geojson|escapejs }}');
+    } catch (e) {
+      console.error("VizHub: could not parse inline map_geojson", e);
+      return;
+    }
+    renderGeoJSON(geojsonData);
   }
 
-  // ── 9. Invalidate map size when the Map tab becomes visible ───────────
-  //   (Leaflet can't measure a hidden container correctly)
+  // ── Invalidate Leaflet size + fit bounds when Map tab becomes visible ───
   document.querySelectorAll(".viz-tab").forEach(function (btn) {
     btn.addEventListener("click", function () {
       if (btn.dataset.target === "map-panel") {
-        setTimeout(function () { map.invalidateSize(); }, 50);
+        // Small delay lets the browser finish un-hiding the panel
+        setTimeout(function () {
+          map.invalidateSize();
+          if (_pendingGeojson) {
+            _fitBounds();
+            _pendingGeojson = false;
+          }
+        }, 80);
       }
     });
   });
