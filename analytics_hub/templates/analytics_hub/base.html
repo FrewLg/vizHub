@@ -15,16 +15,334 @@
         }
     </script>
     <style type="text/css">
-        /* Custom header styles fixed for proper standard parsing */
+        /* ── EPHI Brand Tokens ─────────────────────────────────────────────
+           Primary blue   : #06439e
+           Accent green   : #21b24b
+           Deep navy      : #032a68
+           Light blue tint: #e8f0fc
+           Mid blue       : #1a5cbf
+        ─────────────────────────────────────────────────────────────────── */
+
+        /* ── Google Fonts: Inter ──────────────────────────────────────────── */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+        *, *::before, *::after { box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            font-size: 13px;
+        }
+
+        /* ── Topbar ────────────────────────────────────────────────────────── */
         .topbar {
-            height: 40px;
+            height: 36px;
             padding: 0;
-            font-size: 14px;
-            transition: all 0.5s;
+            font-size: 11px;
+            letter-spacing: 0.01em;
+            background: linear-gradient(90deg, #032a68 0%, #06439e 55%, #21b24b 100%);
+            transition: all 0.3s;
         }
-        .scrolled .header {
-            box-shadow: 0px 0 18px rgba(0, 0, 0, 0.1);
+
+        /* ── Navbar ────────────────────────────────────────────────────────── */
+        .ephi-navbar {
+            background: #fff;
+            border-bottom: 2px solid #e8f0fc;
+            box-shadow: 0 2px 12px 0 rgba(6,67,158,.07);
         }
+        .dark .ephi-navbar {
+            background: #0f1f3d;
+            border-bottom: 2px solid #1a3366;
+        }
+        .brand-name {
+            font-size: 1.05rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            color: #06439e;
+        }
+        .dark .brand-name { color: #7badf5; }
+        .brand-name .accent { color: #21b24b; }
+
+        /* ── Sidebar ───────────────────────────────────────────────────────── */
+        #sidebar {
+            width: 280px;
+            background: #fff;
+            border-right: 1px solid #dbe8fb;
+            box-shadow: 2px 0 16px 0 rgba(6,67,158,.06);
+        }
+        .dark #sidebar {
+            background: #0f1f3d;
+            border-right: 1px solid #1a3366;
+        }
+        .sidebar-header {
+            background: linear-gradient(135deg, #06439e 0%, #1a5cbf 100%);
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .sidebar-header h2 {
+            color: #fff;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+        .sidebar-header button {
+            color: rgba(255,255,255,.7);
+            font-size: 16px;
+            line-height: 1;
+            background: none;
+            border: none;
+            cursor: pointer;
+            transition: color .15s;
+        }
+        .sidebar-header button:hover { color: #fff; }
+
+        /* Filter section labels */
+        .filter-label {
+            display: block;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: #06439e;
+            margin-bottom: 5px;
+        }
+        .dark .filter-label { color: #7badf5; }
+
+        /* Styled selects */
+        .filter-select {
+            width: 100%;
+            padding: 7px 10px;
+            border: 1.5px solid #c7d9f6;
+            border-radius: 7px;
+            background: #f5f8ff;
+            color: #1a2340;
+            font-size: 12px;
+            font-family: inherit;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2306439e'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            cursor: pointer;
+            transition: border-color .15s, box-shadow .15s;
+        }
+        .filter-select:focus {
+            outline: none;
+            border-color: #06439e;
+            box-shadow: 0 0 0 3px rgba(6,67,158,.12);
+        }
+        .filter-select:hover { border-color: #1a5cbf; }
+        .dark .filter-select {
+            background: #0d1d3a;
+            border-color: #1e3a6e;
+            color: #d0e2ff;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%237badf5'/%3E%3C/svg%3E");
+        }
+
+        /* Reset button */
+        .btn-reset {
+            display: block;
+            width: 100%;
+            text-align: center;
+            padding: 8px 0;
+            border-radius: 7px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            color: #06439e;
+            border: 1.5px solid #c7d9f6;
+            background: #f5f8ff;
+            transition: background .15s, border-color .15s;
+            text-decoration: none;
+        }
+        .btn-reset:hover {
+            background: #e8f0fc;
+            border-color: #06439e;
+        }
+        .dark .btn-reset {
+            color: #7badf5;
+            border-color: #1e3a6e;
+            background: #0d1d3a;
+        }
+
+        /* Filter divider */
+        .filter-divider {
+            border: none;
+            border-top: 1px solid #e8f0fc;
+            margin: 2px 0;
+        }
+        .dark .filter-divider { border-top-color: #1a3366; }
+
+        /* ── Workspace cards ───────────────────────────────────────────────── */
+        .viz-card {
+            background: #fff;
+            border: 1px solid #dbe8fb;
+            border-radius: 12px;
+            box-shadow: 0 2px 16px 0 rgba(6,67,158,.06);
+            overflow: hidden;
+        }
+        .dark .viz-card {
+            background: #0f1f3d;
+            border-color: #1a3366;
+        }
+        .viz-card-header {
+            padding: 14px 18px 10px;
+            border-bottom: 1px solid #e8f0fc;
+            background: linear-gradient(90deg, #f5f8ff 0%, #fff 100%);
+        }
+        .dark .viz-card-header {
+            border-bottom-color: #1a3366;
+            background: linear-gradient(90deg, #0d1d3a 0%, #0f1f3d 100%);
+        }
+
+        /* ── Tab strip ─────────────────────────────────────────────────────── */
+        .viz-tab {
+            padding: 8px 0;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            color: #64748b;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            background: none;
+            border-top: none;
+            border-left: none;
+            border-right: none;
+            transition: color .15s, border-color .15s;
+        }
+        .viz-tab:hover { color: #06439e; }
+        .viz-tab.active,
+        .viz-tab[class*="border-blue"] {
+            color: #06439e;
+            border-bottom-color: #06439e !important;
+        }
+        .dark .viz-tab { color: #8ba3c7; }
+        .dark .viz-tab:hover,
+        .dark .viz-tab.active { color: #7badf5; border-bottom-color: #7badf5 !important; }
+
+        /* ── Workspace background ──────────────────────────────────────────── */
+        #capture-area {
+            background: #f0f5fd;
+        }
+        .dark #capture-area {
+            background: #080f1e;
+        }
+
+        /* ── Workspace topbar toggle button ─────────────────────────────────── */
+        .ws-header {
+            background: #fff;
+            border-bottom: 1px solid #dbe8fb;
+            box-shadow: 0 1px 6px rgba(6,67,158,.05);
+        }
+        .dark .ws-header {
+            background: #0f1f3d;
+            border-bottom-color: #1a3366;
+        }
+        .btn-toggle {
+            padding: 6px 14px;
+            border-radius: 7px;
+            border: 1.5px solid #c7d9f6;
+            background: #f5f8ff;
+            color: #06439e;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background .15s;
+        }
+        .btn-toggle:hover { background: #e8f0fc; }
+        .dark .btn-toggle {
+            background: #0d1d3a;
+            border-color: #1e3a6e;
+            color: #7badf5;
+        }
+        .btn-upload {
+            padding: 6px 16px;
+            border-radius: 7px;
+            background: linear-gradient(135deg, #06439e 0%, #1a5cbf 100%);
+            color: #fff;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(6,67,158,.25);
+            transition: opacity .15s, box-shadow .15s;
+        }
+        .btn-upload:hover { opacity: .9; box-shadow: 0 4px 14px rgba(6,67,158,.35); }
+
+        /* ── noUiSlider overrides (EPHI blue, thin track) ─────────────────── */
+        .noUi-target {
+            background: #dbe8fb;
+            border: none;
+            box-shadow: none;
+            height: 2px;          /* thin track */
+            border-radius: 2px;
+        }
+        .noUi-connect {
+            background: linear-gradient(90deg, #1a5cbf 0%, #06439e 100%);
+            border-radius: 2px;
+        }
+        .noUi-handle {
+            width: 16px !important;
+            height: 16px !important;
+            right: -8px !important;
+            top: -7px !important;
+            border-radius: 50%;
+            background: #06439e;
+            border: 2px solid #fff;
+            box-shadow: 0 1px 6px rgba(6,67,158,.4);
+            cursor: grab;
+            transition: transform .1s, box-shadow .1s;
+        }
+        .noUi-handle:active { cursor: grabbing; transform: scale(1.15); }
+        .noUi-handle:before,
+        .noUi-handle:after { display: none; }  /* remove default inner lines */
+
+        /* Tooltips */
+        .noUi-tooltip {
+            font-family: 'Inter', sans-serif;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 6px;
+            background: #06439e;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            bottom: 22px;
+        }
+        .noUi-tooltip::before {
+            border-top-color: #06439e;
+        }
+
+        /* Pip markers */
+        .noUi-pips {
+            font-size: 9px;
+            color: #94a3b8;
+            padding: 6px 0 0;
+        }
+        .noUi-marker-large { background: #c7d9f6; height: 6px; }
+        .noUi-value { color: #64748b; font-size: 9px; }
+
+        /* ── Modal ─────────────────────────────────────────────────────────── */
+        .ephi-modal {
+            background: #fff;
+            border-radius: 14px;
+            border: 1px solid #dbe8fb;
+            box-shadow: 0 20px 60px rgba(6,67,158,.18);
+        }
+        .dark .ephi-modal {
+            background: #0f1f3d;
+            border-color: #1a3366;
+        }
+
+        /* ── Scrollbar ─────────────────────────────────────────────────────── */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: #f0f5fd; }
+        ::-webkit-scrollbar-thumb { background: #c7d9f6; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #06439e; }
+        .dark ::-webkit-scrollbar-track { background: #0a1628; }
+        .dark ::-webkit-scrollbar-thumb { background: #1e3a6e; }
     </style>
     <!-- Chart.js -->
      <!-- html2canvas and jsPDF for PDF report generation -->
@@ -36,68 +354,74 @@
 <body class="bg-gray-100 dark:bg-gray-900 dark:text-gray-100 flex flex-col h-screen overflow-hidden transition-colors duration-200">
 
     <!-- Top Social/Brand Bar -->
-    <div class="topbar flex items-center bg-gradient-to-r from-[#06439e] to-[#21b24b] text-white p-1">
+    <div class="topbar flex items-center text-white px-4">
         <div class="container mx-auto flex justify-between items-center">
-            <div class="contact-info flex items-center space-x-5">
-                 <a href="https://twitter.com/EPHIEthiopia" class="hover:opacity-85 transition">+2412133223</a>
-                <a href="https://ephi.gov.et/about-us/departments-units/scientific-and-ethical-review-office-sero/" class="hover:opacity-85 transition">EPHI</a>
-               
+            <div class="flex items-center space-x-5 opacity-90">
+                <span>📞 +251 11 275 9180</span>
+                <a href="https://ephi.gov.et" class="hover:opacity-100 transition">ephi.gov.et</a>
             </div>
-            <div class="social-links hidden md:flex items-center space-x-5">
-                <a href="https://www.linkedin.com/company/ethiopian-public-health-institute/posts/?feedView=all" class="hover:opacity-85 transition">LinkedIn</a>
-                <a href="https://twitter.com/EPHIEthiopia" class="hover:opacity-85 transition">Twitter</a>
-                <a href="https://ephi.gov.et/about-us/departments-units/scientific-and-ethical-review-office-sero/" class="hover:opacity-85 transition">NDMC</a>
-                <a href="https://web.facebook.com/EPHIET/?_rdc=1&amp;_rdr" class="hover:opacity-85 transition">Facebook</a>
-                <a href="https://web.facebook.com/EPHIET/?_rdc=1&amp;_rdr" class="hover:opacity-85 transition">EPHI WEB</a>
+            <div class="hidden md:flex items-center space-x-5 opacity-90">
+                <a href="https://www.linkedin.com/company/ethiopian-public-health-institute/posts/?feedView=all" class="hover:opacity-100 transition">LinkedIn</a>
+                <a href="https://twitter.com/EPHIEthiopia" class="hover:opacity-100 transition">Twitter</a>
+                <a href="https://ephi.gov.et" class="hover:opacity-100 transition">EPHI Web</a>
             </div>
         </div>
     </div>
 
     <!-- Top Utility Bar -->
-    <nav class="bg-white dark:bg-gray-800 border-b dark:border-gray-700 px-6 py-2 flex justify-between items-center z-30 shadow-sm text-xs">
-        <!-- Left: Image Logo & Brand Title -->
-        <div class="flex items-center">
-            <a href="{% url 'dashboard' %}" class="flex items-center">
-                <img src="https://irb.ephi.gov.et/files/site_setting/3a36ebf9b1124f21ee0d704e36272ec9.png" style="height:40px;padding:1px;margin-right:14px;" alt="EPHI Logo"/>
-                <span class="font-black text-gray-800 dark:text-white text-sm tracking-wide">Viz<span class="text-emerald-600 dark:text-emerald-400">Hub</span></span>
+    <nav class="ephi-navbar px-6 py-2 flex justify-between items-center z-30 text-xs">
+        <div class="flex items-center gap-3">
+            <a href="{% url 'dashboard' %}" class="flex items-center gap-3">
+                <img src="https://irb.ephi.gov.et/files/site_setting/3a36ebf9b1124f21ee0d704e36272ec9.png"
+                     style="height:38px;" alt="EPHI Logo"/>
+                <div>
+                    <div class="brand-name">Viz<span class="accent">Hub</span></div>
+                    <div class="text-[10px] text-gray-400 dark:text-gray-500 -mt-0.5">{% trans "Health Data Visualization" %}</div>
+                </div>
             </a>
-            <span class="text-gray-300 dark:text-gray-600 mx-3">|</span>
-            <span class="text-gray-500 dark:text-gray-400 font-medium">{% trans "Health Data Visualization" %}</span>
+            <span class="h-8 w-px bg-gray-200 dark:bg-gray-600 mx-1"></span>
+            <span class="text-[11px] font-medium text-gray-500 dark:text-gray-400">Ethiopia Public Health Institute</span>
         </div>
 
-        <!-- Right: Utility Controls (Language, Theme, Authentication) -->
-        <div class="flex items-center space-x-4">
-            
-            <!-- Language Toggle -->
+        <div class="flex items-center space-x-3">
             {% get_current_language as CURRENT_LANG %}
-            <div class="flex items-center space-x-1 bg-gray-100 dark:bg-gray-700 p-1 rounded">
-                <form action="{% url 'set_language' %}" method="POST" class="inline flex items-center space-x-1">
+            <div class="flex items-center space-x-0.5 bg-gray-100 dark:bg-gray-700/60 p-0.5 rounded-lg">
+                <form action="{% url 'set_language' %}" method="POST" class="inline flex items-center">
                     {% csrf_token %}
                     <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                    <button type="submit" name="language" value="en" class="px-2 py-0.5 rounded {% if CURRENT_LANG == 'en' %}bg-white dark:bg-gray-600 font-bold shadow-xs{% else %}text-gray-600 dark:text-gray-300{% endif %} transition">EN</button>
-                    <button type="submit" name="language" value="am" class="px-2 py-0.5 rounded {% if CURRENT_LANG == 'am' %}bg-white dark:bg-gray-600 font-bold shadow-xs{% else %}text-gray-600 dark:text-gray-300{% endif %} transition">አማ</button>
+                    <button type="submit" name="language" value="en"
+                        class="px-2.5 py-1 rounded-md text-[11px] font-semibold transition
+                               {% if CURRENT_LANG == 'en' %}bg-white dark:bg-[#06439e] text-[#06439e] dark:text-white shadow-sm{% else %}text-gray-500 dark:text-gray-400{% endif %}">EN</button>
+                    <button type="submit" name="language" value="am"
+                        class="px-2.5 py-1 rounded-md text-[11px] font-semibold transition
+                               {% if CURRENT_LANG == 'am' %}bg-white dark:bg-[#06439e] text-[#06439e] dark:text-white shadow-sm{% else %}text-gray-500 dark:text-gray-400{% endif %}">አማ</button>
                 </form>
             </div>
 
-            <!-- Dark/Light Theme Toggle -->
-            <button onclick="toggleTheme()" class="p-1.5 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition" title="Toggle Theme">
+            <button onclick="toggleTheme()"
+                class="p-1.5 rounded-full bg-gray-100 dark:bg-gray-700/60 hover:bg-gray-200 dark:hover:bg-gray-600 transition"
+                title="Toggle Theme">
                 <span id="theme-icon">🌙</span>
             </button>
 
-            <!-- Authentication Section -->
-            <div class="flex items-center space-x-3 border-l pl-3 dark:border-gray-600">
+            <div class="flex items-center space-x-2 border-l border-gray-200 dark:border-gray-600 pl-3">
                 {% if user.is_authenticated %}
-                    <span class="font-semibold text-gray-700 dark:text-gray-200">{{ user.email|default:user.username }}</span>
+                    <div class="w-7 h-7 rounded-full bg-gradient-to-br from-[#06439e] to-[#21b24b] flex items-center justify-center text-white font-bold text-xs">
+                        {{ user.email|first|upper }}
+                    </div>
+                    <span class="font-semibold text-gray-700 dark:text-gray-200 text-[11px]">{{ user.email|default:user.username }}</span>
                     <form method="POST" action="{% url 'account_logout' %}">
                         {% csrf_token %}
-                        <button type="submit" class="bg-gray-200 dark:bg-gray-700 hover:bg-red-600 hover:text-white dark:hover:bg-red-600 text-gray-700 dark:text-gray-300 px-2.5 py-1 rounded transition font-medium">Sign Out</button>
+                        <button type="submit"
+                            class="text-[11px] font-semibold text-red-500 hover:text-red-700 dark:hover:text-red-400 transition px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20">Sign Out</button>
                     </form>
                 {% else %}
-                    <a href="{% provider_login_url 'google' %}" class="bg-white dark:bg-gray-700 border dark:border-gray-600 text-gray-800 dark:text-gray-200 px-3 py-1.5 rounded font-semibold hover:bg-gray-50 dark:hover:bg-gray-600 transition flex items-center space-x-1.5 shadow-xs">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-google" viewBox="0 0 16 16">
+                    <a href="{% provider_login_url 'google' %}"
+                       class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-[11px] font-semibold hover:border-[#06439e] hover:text-[#06439e] transition shadow-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16">
                             <path d="M15.545 6.558a9.42 9.42 0 0 1 .139 1.626c0 2.434-.87 4.492-2.384 5.885h.002C11.978 15.292 10.158 16 8 16A8 8 0 1 1 8 0a7.689 7.689 0 0 1 5.352 2.082l-2.284 2.284A4.347 4.347 0 0 0 8 3.166c-2.087 0-3.86 1.408-4.492 3.304a4.792 4.792 0 0 0 0 3.063h.003c.632 1.896 2.405 3.304 4.492 3.304 1.745 0 3.232-.977 3.99-2.384h-3.99v-3.166h7.545z"/>
                         </svg>
-                        <span>Sign in with Google</span>
+                        Sign in with Google
                     </a>
                 {% endif %}
             </div>
@@ -108,107 +432,113 @@
     <div class="flex flex-1 overflow-hidden">
 
         <!-- Faceted Search Sidebar -->
-        <aside id="sidebar" class="w-96 bg-white dark:bg-gray-800 border-r dark:border-gray-700 flex flex-col transition-all duration-300 z-20 shadow-lg">
-            <div class="p-4 border-b dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50">
-                <h2 class="font-bold text-sm text-gray-800 dark:text-gray-200 uppercase tracking-wider">{% trans "Advanced Search" %}</h2>
-                <button onclick="toggleFacets()" class="text-gray-500 hover:text-black dark:hover:text-white font-bold">✕</button>
+        <aside id="sidebar" class="flex flex-col transition-all duration-300 z-20">
+            <div class="sidebar-header">
+                <h2>🔍 &nbsp;Filters</h2>
+                <button onclick="toggleFacets()">✕</button>
             </div>
-            
-            <form method="GET" id="filter-form" class="p-4 overflow-y-auto flex-1 space-y-4 text-xs">
 
-    <!-- Geography Level Selector -->
+            <form method="GET" id="filter-form" class="p-4 overflow-y-auto flex-1 space-y-4">
+
+    <!-- Geography Level -->
     <div>
-        <label class="font-semibold block mb-1 text-gray-700 dark:text-gray-300">Geography Level</label>
-        <select name="geography" id="f-geography" class="w-full border dark:border-gray-700 bg-white dark:bg-gray-900 p-1.5 rounded">
-            <option value="national"  {% if selected_geography == 'national'  %}selected{% endif %}>National</option>
-            <option value="regional"  {% if selected_geography == 'regional'  %}selected{% endif %}>Regional</option>
-            <option value="zone"      {% if selected_geography == 'zone'      %}selected{% endif %}>Zone</option>
-            <option value="woreda"    {% if selected_geography == 'woreda'    %}selected{% endif %}>Woreda</option>
+        <label class="filter-label">Geography Level</label>
+        <select name="geography" id="f-geography" class="filter-select">
+            <option value="national"  {% if selected_geography == 'national'  %}selected{% endif %}>🌍 National</option>
+            <option value="regional"  {% if selected_geography == 'regional'  %}selected{% endif %}>🗺 Regional</option>
+            <option value="zone"      {% if selected_geography == 'zone'      %}selected{% endif %}>📍 Zone</option>
+            <option value="woreda"    {% if selected_geography == 'woreda'    %}selected{% endif %}>📌 Woreda</option>
         </select>
     </div>
 
-    <!-- Indicator Selector (Topic removed — results focused on indicator) -->
+    <hr class="filter-divider">
+
+    <!-- Indicator -->
     <div>
-        <label class="font-semibold block mb-1 text-gray-700 dark:text-gray-300">Indicator</label>
-        <select name="indicator" id="f-indicator" class="w-full border dark:border-gray-700 bg-white dark:bg-gray-900 p-1.5 rounded">
-            <option value="">-- All Indicators --</option>
+        <label class="filter-label">Indicator</label>
+        <select name="indicator" id="f-indicator" class="filter-select">
+            <option value="">— All Indicators —</option>
             {% for ind in indicators %}
             <option value="{{ ind.id }}" {% if selected_indicator|slugify == ind.id|slugify %}selected{% endif %}>{{ ind.name }}</option>
             {% endfor %}
         </select>
     </div>
 
+    <hr class="filter-divider">
+
     <!-- Year Range Slider -->
-    <div class="mb-2 pb-8">
-        <label class="font-semibold block mb-1 text-gray-700 dark:text-gray-300">Year Range</label>
+    <div>
+        <label class="filter-label">Year Range</label>
         <input type="hidden" name="year_from" id="id_year_from" value="{{ selected_year_from }}">
         <input type="hidden" name="year_to"   id="id_year_to"   value="{{ selected_year_to }}">
-        <div class="flex justify-between text-[11px] text-blue-600 dark:text-blue-400 font-semibold mb-2">
+        <div class="flex justify-between mb-3" style="font-size:11px;font-weight:700;color:#06439e;">
             <span id="slider-label-from">{{ selected_year_from }}</span>
-            <span>–</span>
+            <span style="color:#94a3b8;">to</span>
             <span id="slider-label-to">{{ selected_year_to }}</span>
         </div>
-        <div id="year-range-slider" class="mx-1"></div>
+        <div id="year-range-slider" style="margin:0 2px;"></div>
+        <div style="height:14px;"></div>{# space for pips #}
     </div>
 
- 
-    <!-- Location Selector -->
+    <hr class="filter-divider">
+
+    <!-- Location -->
     <div>
-        <label class="font-semibold block mb-1 text-gray-700 dark:text-gray-300">Location</label>
-        <select name="location" id="f-location" class="w-full border dark:border-gray-700 bg-white dark:bg-gray-900 p-1.5 rounded">
-            <option value="">-- All Locations --</option>
+        <label class="filter-label">Location</label>
+        <select name="location" id="f-location" class="filter-select">
+            <option value="">— All Locations —</option>
             {% for loc in locations %}
             <option value="{{ loc.id }}" {% if selected_location|slugify == loc.id|slugify %}selected{% endif %}>{{ loc.name }}</option>
             {% endfor %}
         </select>
     </div>
 
-    <!-- Disease / Cause Selector -->
+    <!-- Disease -->
     <div>
-        <label class="font-semibold block mb-1 text-gray-700 dark:text-gray-300">Disease</label>
-        <select name="cause" id="f-cause" class="w-full border dark:border-gray-700 bg-white dark:bg-gray-900 p-1.5 rounded">
-            <option value="">-- All Causes --</option>
+        <label class="filter-label">Disease / Cause</label>
+        <select name="cause" id="f-cause" class="filter-select">
+            <option value="">— All Causes —</option>
             {% for cause in causes %}
             <option value="{{ cause.id }}" {% if selected_cause|slugify == cause.id|slugify %}selected{% endif %}>{{ cause.name }}</option>
             {% endfor %}
         </select>
     </div>
 
-    <!-- Sex Selector -->
+    <!-- Sex -->
     <div>
-        <label class="font-semibold block mb-1 text-gray-700 dark:text-gray-300">Sex</label>
-        <select name="sex" id="f-sex" class="w-full border dark:border-gray-700 bg-white dark:bg-gray-900 p-1.5 rounded">
-            <option value="">-- Both / All --</option>
+        <label class="filter-label">Sex</label>
+        <select name="sex" id="f-sex" class="filter-select">
+            <option value="">— Both / All —</option>
             {% for s in sexes %}
             <option value="{{ s.id }}" {% if selected_sex|slugify == s.id|slugify %}selected{% endif %}>{{ s.name }}</option>
             {% endfor %}
         </select>
     </div>
 
-    <!-- Loading indicator shown while fetch is in flight -->
-    <div id="filter-loading" class="hidden flex items-center gap-2 text-blue-500 text-[11px] py-1">
-        <svg class="animate-spin h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+    <hr class="filter-divider">
+
+    <!-- Live update indicator -->
+    <div id="filter-loading" class="hidden items-center gap-2 py-1" style="font-size:10px;color:#1a5cbf;">
+        <svg class="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
         </svg>
-        Updating…
+        Updating results…
     </div>
 
-    <!-- Reset only (Apply removed — results update live) -->
-    <div class="pt-1">
-        <a href="{% url 'dashboard' %}" class="w-full text-center bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 py-2 rounded font-semibold transition block">Reset Filters</a>
-    </div>
+    <a href="{% url 'dashboard' %}" class="btn-reset">↺ Reset Filters</a>
 </form>
         </aside>
 
         <!-- Main Workspace -->
         <main class="flex-1 flex flex-col h-full overflow-hidden">
-            
-            <header class="bg-white dark:bg-gray-800 border-b dark:border-gray-700 px-6 py-3 flex justify-between items-center shadow-xs">
-                <button onclick="toggleFacets()" class="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 border dark:border-gray-600 px-3 py-1.5 rounded text-xs font-medium transition">=</button>
-                
-                <!-- Upload Excel Button Action -->
-                <button onclick="toggleUploadModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-1.5 rounded font-semibold text-xs transition shadow-xs">{% trans "Upload" %}</button>
+            <header class="ws-header px-5 py-2.5 flex justify-between items-center">
+                <button onclick="toggleFacets()" class="btn-toggle" title="Toggle filters">
+                    <span style="font-size:15px;line-height:1;">☰</span>
+                </button>
+                <div class="flex items-center gap-2">
+                    <button onclick="toggleUploadModal()" class="btn-upload">⬆ {% trans "Upload Data" %}</button>
+                </div>
             </header>
 
             
@@ -224,21 +554,25 @@
     </div>
 
     <!-- Excel Upload Modal -->
-    <div id="uploadModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center">
-        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 w-96 shadow-xl border dark:border-gray-700 relative">
-            <div class="flex justify-between items-center mb-4 border-b dark:border-gray-700 pb-2">
-                <h3 class="font-bold text-gray-800 dark:text-gray-100 text-sm">Upload Dataset (.xlsx)</h3>
-                <button onclick="toggleUploadModal()" class="text-gray-400 hover:text-black dark:hover:text-white font-bold">✕</button>
+    <div id="uploadModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center">
+        <div class="ephi-modal p-6 w-[420px] relative">
+            <div class="flex justify-between items-center mb-5 pb-3" style="border-bottom:1px solid #dbe8fb;">
+                <div>
+                    <h3 style="font-weight:700;font-size:14px;color:#06439e;">Upload Dataset</h3>
+                    <p style="font-size:10px;color:#94a3b8;margin-top:2px;">.xlsx / Excel format</p>
+                </div>
+                <button onclick="toggleUploadModal()" style="color:#94a3b8;font-size:18px;background:none;border:none;cursor:pointer;line-height:1;" class="hover:text-gray-600">✕</button>
             </div>
-            
             <form method="POST" enctype="multipart/form-data" class="space-y-4">
                 {% csrf_token %}
                 <div>
-                    <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1">Choose Excel Sheet</label>
+                    <label class="filter-label">Choose Excel File</label>
                     {{ upload_form.excel_file }}
-                    <p class="text-[10px] text-gray-400 mt-1">Expected schema: topic, date, disease, age_group, facility, location, metric_value</p>
+                    <p style="font-size:10px;color:#94a3b8;margin-top:4px;">Expected columns: topic, date, disease, age_group, facility, location, metric_value</p>
                 </div>
-                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded font-semibold text-xs transition">Import Dataset</button>
+                <button type="submit" class="btn-upload w-full" style="width:100%;padding:10px;border-radius:8px;font-size:12px;">
+                    ⬆ Import Dataset
+                </button>
             </form>
         </div>
     </div>

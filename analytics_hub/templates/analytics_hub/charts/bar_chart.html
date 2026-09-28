@@ -161,23 +161,34 @@ buildCharts(
     </svg>
   </div>
 
-  {# Legend ─────────────────────────────────────────────────────────────── #}
-  <div id="map-legend"
-       class="absolute bottom-6 right-4 bg-white dark:bg-gray-800 border
-              border-gray-200 dark:border-gray-600 rounded-lg shadow p-3
-              text-xs z-[1000] min-w-[150px]">
-    <p class="font-semibold mb-2 text-gray-700 dark:text-gray-200 truncate"
-       title="{{ indicator_name }}">{{ indicator_name }}</p>
-    <div id="legend-gradient" class="w-full h-4 rounded mb-1"
-         style="background:linear-gradient(to right,#eff3ff,#084594);"></div>
-    <div class="flex justify-between text-gray-500 dark:text-gray-400">
-      <span id="legend-min">0</span>
-      <span id="legend-max">–</span>
+  {# Legend — Leaflet control placed inside the relative container ────── #}
+  <div id="map-legend" style="
+       position:absolute; bottom:24px; right:12px; z-index:1000;
+       background:#fff; border:1px solid #dbe8fb;
+       border-radius:10px; box-shadow:0 4px 18px rgba(6,67,158,.13);
+       padding:12px 14px; min-width:160px; font-family:'Inter',sans-serif;">
+
+    {# Title row #}
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;
+                border-bottom:1px solid #e8f0fc;padding-bottom:8px;">
+      <span style="width:8px;height:8px;border-radius:50%;
+                   background:linear-gradient(135deg,#06439e,#21b24b);
+                   flex-shrink:0;display:inline-block;"></span>
+      <span id="legend-title" style="font-size:10px;font-weight:700;
+             letter-spacing:.06em;text-transform:uppercase;color:#06439e;
+             white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+             max-width:130px;" title="{{ indicator_name }}">{{ indicator_name }}</span>
     </div>
-    <div class="flex items-center gap-1.5 mt-2">
-      <span class="inline-block w-4 h-4 rounded-sm flex-shrink-0"
-            style="background:#e5e7eb;border:1px solid #d1d5db;"></span>
-      <span class="text-gray-500 dark:text-gray-400">No data</span>
+
+    {# Colour swatches — filled by updateLegend() #}
+    <div id="legend-swatches" style="display:flex;flex-direction:column;gap:3px;"></div>
+
+    {# No-data row #}
+    <div style="display:flex;align-items:center;gap:7px;
+                margin-top:8px;padding-top:7px;border-top:1px solid #e8f0fc;">
+      <span style="width:16px;height:11px;border-radius:3px;flex-shrink:0;
+                   background:#e5e7eb;border:1px solid #c7d9f6;display:inline-block;"></span>
+      <span style="font-size:10px;color:#94a3b8;">No data</span>
     </div>
   </div>
 </div>
