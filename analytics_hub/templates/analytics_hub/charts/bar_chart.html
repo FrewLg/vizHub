@@ -255,10 +255,20 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   // ── Initialise Leaflet ────────────────────────────────────────────────
-  // Use CARTO Positron tiles — no API key needed, no 403/rate-limit issues
+  // Ethiopia's geographic bounding box (lon 33–48, lat 3–15)
+  // maxBounds prevents panning outside it; noWrap on the tile layer
+  // stops the world from repeating when the user zooms out.
+  const ETH_BOUNDS = L.latLngBounds(
+    L.latLng(3.0,  33.0),   // SW corner
+    L.latLng(15.5, 48.5)    // NE corner
+  );
+
   const map = L.map("choropleth-map", {
-    zoomControl: true,
-    // Start with Ethiopia's bounding box; re-fitted once GeoJSON loads
+    zoomControl:     true,
+    worldCopyJump:   false,   // don't jump to repeated copy on pan
+    maxBounds:       ETH_BOUNDS,
+    maxBoundsViscosity: 1.0,  // hard wall — can't drag outside bounds at all
+    minZoom:         5,       // prevent zooming so far out the world repeats
     center: [9.145, 40.49],
     zoom: 6
   });
@@ -269,6 +279,8 @@ document.addEventListener("DOMContentLoaded", function () {
       attribution:
         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       maxZoom: 19,
+      noWrap:  true,      // tiles don't repeat outside [-180, 180]
+      bounds:  ETH_BOUNDS, // only request tiles inside Ethiopia's bbox
       crossOrigin: true
     }
   ).addTo(map);

@@ -147,16 +147,78 @@
         </select>
     </div>
 
-    <!-- Year Selector -->
-    <div>
-        <label class="font-semibold block mb-1 text-gray-700 dark:text-gray-300">Year</label>
-        <select name="year" class="w-full border dark:border-gray-700 bg-white dark:bg-gray-900 p-1.5 rounded">
-            <option value="">-- All Years --</option>
-            {% for y in years %}
-            <option value="{{ y }}" {% if selected_year|slugify == y|slugify %}selected{% endif %}>{{ y }}</option>
+    <!-- Year Range Slider -->
+    <div class="mb-2 pb-8 ">
+        <label class="font-semibold block mb-1 text-gray-700 dark:text-gray-300">Year Range</label>
+
+        {# Hidden inputs submitted with the form #}
+        <input type="hidden" name="year_from" id="id_year_from" value="{{ selected_year_from }}">
+        <input type="hidden" name="year_to"   id="id_year_to"   value="{{ selected_year_to }}">
+
+        {# Label row: shows current selection live #}
+        <div class="flex justify-between text-[11px] text-blue-600 dark:text-blue-400 font-semibold mb-2">
+            <span id="slider-label-from">{{ selected_year_from }}</span>
+            <span>–</span>
+            <span id="slider-label-to">{{ selected_year_to }}</span>
+        </div>
+
+        {# The slider track #}
+        <div id="year-range-slider" class="mx-1"></div>
+
+        {# Tick marks: one per available year #}
+        <!-- <div class="flex justify-between mt-2 text-[9px] text-gray-400 dark:text-gray-500 px-0.5">
+            {% for y in all_years %}
+            <span>{{ y }}</span>
             {% endfor %}
-        </select>
+        </div> -->
     </div>
+
+    {# noUiSlider — lightweight dual-handle range slider, no API key, no build step #}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.8.1/nouislider.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.8.1/nouislider.min.js"></script>
+    <script>
+    (function () {
+        const sliderEl  = document.getElementById("year-range-slider");
+        const inputFrom = document.getElementById("id_year_from");
+        const inputTo   = document.getElementById("id_year_to");
+        const labelFrom = document.getElementById("slider-label-from");
+        const labelTo   = document.getElementById("slider-label-to");
+
+        const minYear = {{ slider_min_year }};
+        const maxYear = {{ slider_max_year }};
+        const fromVal = {{ selected_year_from }};
+        const toVal   = {{ selected_year_to }};
+        // All available year values for snapping
+        const snapYears = {{ all_years|safe }};
+
+        noUiSlider.create(sliderEl, {
+            start:   [fromVal, toVal],
+            connect: true,            // fill between handles
+            step:    1,
+            range:   { min: minYear, max: maxYear },
+            snap:    false,
+            pips: {
+                mode: "values",
+                values: snapYears,
+                density: 100,
+                stepped: true,
+            },
+            tooltips: [
+                { to: v => Math.round(v) },
+                { to: v => Math.round(v) },
+            ],
+        });
+
+        sliderEl.noUiSlider.on("update", function (values) {
+            const from = Math.round(values[0]);
+            const to   = Math.round(values[1]);
+            inputFrom.value  = from;
+            inputTo.value    = to;
+            labelFrom.textContent = from;
+            labelTo.textContent   = to;
+        });
+    }());
+    </script>
 
     <!-- Location Selector -->
     <div>

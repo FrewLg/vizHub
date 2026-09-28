@@ -158,10 +158,27 @@ class ObservationBarChartView(TemplateView):
         geography = self.request.GET.get("geography", "regional")
         topic_id = self.request.GET.get("topic")
         indicator_id = self.request.GET.get("indicator")
-        year = self.request.GET.get("year")
+        # ── Year range (replaces single-year select) ──────────────────────
+        year_from = self.request.GET.get("year_from") or None
+        year_to   = self.request.GET.get("year_to")   or None
+        # legacy single-year param kept for backward compat
+        year_single = self.request.GET.get("year") or None
         location_id = self.request.GET.get("location")
         cause_id = self.request.GET.get("cause")
         sex_id = self.request.GET.get("sex")
+
+        # All available years for slider bounds
+        all_years = sorted(
+            Observation.objects.values_list("year", flat=True).distinct()
+        )
+        min_year = all_years[0]  if all_years else 2000
+        max_year = all_years[-1] if all_years else 2025
+
+        # Resolve active range
+        if year_single and not (year_from or year_to):
+            year_from = year_to = year_single
+        active_year_from = int(year_from) if year_from else min_year
+        active_year_to   = int(year_to)   if year_to   else max_year
 
         if indicator_id:
             try:
@@ -188,8 +205,8 @@ class ObservationBarChartView(TemplateView):
             queryset = queryset.filter(indicator__topic_id=topic_id)
         if indicator_id:
             queryset = queryset.filter(indicator_id=indicator_id)
-        if year:
-            queryset = queryset.filter(year=year)
+        # ── Year range filter (replaces single year=) ─────────────────────
+        queryset = queryset.filter(year__gte=active_year_from, year__lte=active_year_to)
         if location_id:
             queryset = queryset.filter(location_id=location_id)
         if cause_id:
@@ -223,7 +240,6 @@ class ObservationBarChartView(TemplateView):
         
         context["topics"] = Topic.objects.all() if 'Topic' in globals() else []
         context["indicators"] = Indicator.objects.all()
-        context["years"] = Observation.objects.values_list('year', flat=True).distinct().order_by('-year')
         context["locations"] = Location.objects.all()
         context["causes"] = Cause.objects.all() if 'Cause' in globals() else []
         context["sexes"] = Sex.objects.all() if 'Sex' in globals() else []
@@ -231,10 +247,16 @@ class ObservationBarChartView(TemplateView):
         context["selected_geography"] = geography
         context["selected_topic"] = topic_id
         context["selected_indicator"] = indicator_id
-        context["selected_year"] = year
         context["selected_location"] = location_id
         context["selected_cause"] = cause_id
         context["selected_sex"] = sex_id
+
+        # ── Year range context for the slider ────────────────────────────
+        context["all_years"]         = all_years          # [2020, 2021, …]
+        context["slider_min_year"]   = min_year
+        context["slider_max_year"]   = max_year
+        context["selected_year_from"] = active_year_from
+        context["selected_year_to"]   = active_year_to
 
         # Line chart data aggregation (fixed order_by and values_list syntax)
         linedata = (
@@ -273,7 +295,8 @@ def geojson_api(request):
     """
     geography    = request.GET.get("level", "regional")
     indicator_id = request.GET.get("indicator")
-    year         = request.GET.get("year")
+    year_from    = request.GET.get("year_from") or request.GET.get("year") or None
+    year_to      = request.GET.get("year_to")   or request.GET.get("year") or None
     topic_id     = request.GET.get("topic")
     sex_id       = request.GET.get("sex")
     cause_id     = request.GET.get("cause")
@@ -295,8 +318,10 @@ def geojson_api(request):
 
     if indicator_id:
         qs = qs.filter(indicator_id=indicator_id)
-    if year:
-        qs = qs.filter(year=year)
+    if year_from:
+        qs = qs.filter(year__gte=int(year_from))
+    if year_to:
+        qs = qs.filter(year__lte=int(year_to))
     if topic_id:
         qs = qs.filter(indicator__topic_id=topic_id)
     if sex_id:
