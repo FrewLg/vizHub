@@ -121,7 +121,6 @@
             font-size: 12px;
             font-family: inherit;
             appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2306439e'/%3E%3C/svg%3E");
             background-repeat: no-repeat;
             background-position: right 10px center;
             cursor: pointer;
@@ -137,7 +136,6 @@
             background: #0d1d3a;
             border-color: #1e3a6e;
             color: #d0e2ff;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%237badf5'/%3E%3C/svg%3E");
         }
 
         /* Reset button */
@@ -450,9 +448,9 @@
 
     <!-- Indicator -->
     <div>
-        <label class="filter-label">Indicator</label>
+        <label class="filter-label">Analysis Topic</label>
         <select name="indicator" id="f-indicator" class="filter-select">
-            <option value="">— All Indicators —</option>
+            <option value="">— All Topics —</option>
             {% for ind in indicators %}
             <option value="{{ ind.id }}" {% if selected_indicator|slugify == ind.id|slugify %}selected{% endif %}>{{ ind.name }}</option>
             {% endfor %}
