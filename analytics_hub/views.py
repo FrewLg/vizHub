@@ -9,9 +9,11 @@ from .utils_pdf import generate_gbd_pdf_report
 from django.utils.translation import get_language
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from .services.chart_builder import build_chart_data
+from .services.chart_builder import build_chart_data 
 from django.contrib import messages
 from django.db.models import Avg, Sum, Count, Max
+from .forms import ExcelUploadForm  
+from django.views.generic import TemplateView
 from .models import (
     Topic,
     Indicator,
@@ -22,26 +24,161 @@ from .models import (
     VisualizationConfig,
     AgeGroup,
     FacilityCategory,
+    LocationGeometry,
 )
-from .forms import ExcelUploadForm  
-from django.views.generic import TemplateView
- 
+
+# ── GeoJSON static file map (geography param → filename in static/geojson/) ──
+_GEOJSON_FILES = {
+    "national":  ("admin0_country.geojson",  "adm0_name"),
+    "regional":  ("admin1_regions.geojson",  "adm1_name"),
+    "zone":      ("admin2_zones.geojson",    "adm2_name"),
+    "woreda":    ("admin3_woredas.geojson",  "adm3_name"),
+}
+_GEOJSON_DIR = Path(settings.BASE_DIR) / "static" / "geojson"
+
+
+def _load_geojson(geography: str) -> tuple[str, str]:
+    """Return (raw_geojson_string, name_prop) for the requested geography."""
+    fname, name_prop = _GEOJSON_FILES.get(geography, _GEOJSON_FILES["regional"])
+    path = _GEOJSON_DIR / fname
+    try:
+        return path.read_text(encoding="utf-8"), name_prop
+    except FileNotFoundError:
+        return '{"type":"FeatureCollection","features":[]}', name_prop
+
+
+# class ObservationBarChartView(TemplateView):
+#     template_name = "analytics_hub/charts/bar_chart.html"
+
+#     def get_context_data(self, **kwargs):
+#         context = super().get_context_data(**kwargs)
+#         indicator_name = "-"
+#         geography = self.request.GET.get("geography", "regional")
+#         topic_id = self.request.GET.get("topic")
+#         indicator_id = self.request.GET.get("indicator")
+#         year = self.request.GET.get("year")
+#         location_id = self.request.GET.get("location")
+#         cause_id = self.request.GET.get("cause")
+#         sex_id = self.request.GET.get("sex")
+#         if indicator_id:
+#             try:
+#                 indicator = Indicator.objects.get(pk=indicator_id)
+#                 indicator_name = indicator.name
+#             except Indicator.DoesNotExist:
+#                 pass
+
+#         context["indicator_name"] = indicator_name
+#         queryset = Observation.objects.select_related("location", "indicator")
+#         if geography == "national":
+#             queryset = queryset.filter(location__level__iexact="country")
+#         elif geography == "regional":
+#             queryset = queryset.filter(location__level__in=["regional", "region", "Regional"])
+#         elif geography == "zone":
+#             queryset = queryset.filter(location__level__iexact="zone")
+#         elif geography == "woreda":
+#             queryset = queryset.filter(location__level__iexact="woreda")
+
+#         # 4. Apply Faceted Search Filters
+#         if topic_id:
+#             queryset = queryset.filter(indicator__topic_id=topic_id)
+
+#         if indicator_id:
+#             queryset = queryset.filter(indicator_id=indicator_id)
+
+#         if year:
+#             queryset = queryset.filter(year=year)
+
+#         if location_id:
+#             queryset = queryset.filter(location_id=location_id)
+
+#         if cause_id:
+#             queryset = queryset.filter(cause_id=cause_id)
+
+#         if sex_id:
+#             queryset = queryset.filter(sex_id=sex_id)
+#         data = (
+#             queryset
+#             .values("location__name")
+#             .annotate(total=Sum("value"))
+#             .order_by("-total")
+#         )
+
+#         labels = [row["location__name"] for row in data if row["location__name"]]
+#         values = [float(row["total"]) if row["total"] is not None else 0.0 for row in data if row["location__name"]]
+
+#         context["chart_labels"] = labels
+#         context["chart_values"] = values
+
+#         context["data"] = [
+#             {
+#                 "label": row["location__name"],
+#                 "value": float(row["total"]) if row["total"] is not None else 0.0
+#             }
+#             for row in data if row["location__name"]
+#         ]
+
+#         context["show_map"] = True
+#         context["topics"] = Topic.objects.all() if 'Topic' in globals() else []
+#         context["indicators"] = Indicator.objects.all()
+#         context["years"] = Observation.objects.values_list('year', flat=True).distinct().order_by('-year')
+#         context["locations"] = Location.objects.all()
+#         context["causes"] = Cause.objects.all() if 'Cause' in globals() else []
+#         context["sexes"] = Sex.objects.all() if 'Sex' in globals() else []
+#         context["selected_geography"] = geography
+#         context["selected_topic"] = topic_id
+#         context["selected_indicator"] = indicator_id
+#         context["selected_year"] = year
+#         context["selected_location"] = location_id
+#         context["selected_cause"] = cause_id
+#         context["selected_sex"] = sex_id
+#         line_data = (
+#             queryset
+#             .values("year")
+#             .annotate(total=Sum("value"))
+#             .order_by("year")
+#         )
+
+#         context["line_chart_labels"] = [
+#             str(row["year"]) for row in line_data
+#         ]
+
+#         context["line_chart_values"] = [
+#             float(row["total"] or 0) for row in line_data
+#         ]
+#         return context
 
 class ObservationBarChartView(TemplateView):
+    # template_name = "analytics_hub/charts/barchart.html"
     template_name = "analytics_hub/charts/bar_chart.html"
     # Map
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        indicator_name = "All Indicators"
-
-        # 1. Capture all sidebar GET parameters
+        indicator_name = "-"
+        
         geography = self.request.GET.get("geography", "regional")
         topic_id = self.request.GET.get("topic")
         indicator_id = self.request.GET.get("indicator")
-        year = self.request.GET.get("year")
+        # ── Year range (replaces single-year select) ──────────────────────
+        year_from = self.request.GET.get("year_from") or None
+        year_to   = self.request.GET.get("year_to")   or None
+        # legacy single-year param kept for backward compat
+        year_single = self.request.GET.get("year") or None
         location_id = self.request.GET.get("location")
         cause_id = self.request.GET.get("cause")
         sex_id = self.request.GET.get("sex")
+
+        # All available years for slider bounds
+        all_years = sorted(
+            Observation.objects.values_list("year", flat=True).distinct()
+        )
+        min_year = all_years[0]  if all_years else 2000
+        max_year = all_years[-1] if all_years else 2025
+
+        # Resolve active range
+        if year_single and not (year_from or year_to):
+            year_from = year_to = year_single
+        active_year_from = int(year_from) if year_from else min_year
+        active_year_to   = int(year_to)   if year_to   else max_year
 
         if indicator_id:
             try:
@@ -52,10 +189,9 @@ class ObservationBarChartView(TemplateView):
 
         context["indicator_name"] = indicator_name
         
-        # 2. Base Queryset for Observations
         queryset = Observation.objects.select_related("location", "indicator")
 
-        # 3. Apply Geography Level Filter safely (adjust field values to match your DB)
+        # Fixed double-underscores for field lookups
         if geography == "national":
             queryset = queryset.filter(location__level__iexact="country")
         elif geography == "regional":
@@ -65,26 +201,20 @@ class ObservationBarChartView(TemplateView):
         elif geography == "woreda":
             queryset = queryset.filter(location__level__iexact="woreda")
 
-        # 4. Apply Faceted Search Filters
         if topic_id:
             queryset = queryset.filter(indicator__topic_id=topic_id)
-
         if indicator_id:
             queryset = queryset.filter(indicator_id=indicator_id)
-
-        if year:
-            queryset = queryset.filter(year=year)
-
+        # ── Year range filter (replaces single year=) ─────────────────────
+        queryset = queryset.filter(year__gte=active_year_from, year__lte=active_year_to)
         if location_id:
             queryset = queryset.filter(location_id=location_id)
-
         if cause_id:
             queryset = queryset.filter(cause_id=cause_id)
-
         if sex_id:
             queryset = queryset.filter(sex_id=sex_id)
 
-        # 5. Aggregate data grouped by location name
+        # Bar chart data aggregation
         data = (
             queryset
             .values("location__name")
@@ -107,83 +237,198 @@ class ObservationBarChartView(TemplateView):
         ]
 
         context["show_map"] = True
-
-        # ==========================================
-        # CRITICAL: Populate Sidebar Dropdowns for base.html
-        # ==========================================
+        
         context["topics"] = Topic.objects.all() if 'Topic' in globals() else []
         context["indicators"] = Indicator.objects.all()
-        context["years"] = Observation.objects.values_list('year', flat=True).distinct().order_by('-year')
         context["locations"] = Location.objects.all()
         context["causes"] = Cause.objects.all() if 'Cause' in globals() else []
         context["sexes"] = Sex.objects.all() if 'Sex' in globals() else []
 
-        # Preserve selected form states in the sidebar dropdowns
         context["selected_geography"] = geography
         context["selected_topic"] = topic_id
         context["selected_indicator"] = indicator_id
-        context["selected_year"] = year
         context["selected_location"] = location_id
         context["selected_cause"] = cause_id
         context["selected_sex"] = sex_id
-        # Line chart: Year vs Total Value
 
-        line_data = (
+        # ── Year range context for the slider ────────────────────────────
+        context["all_years"]         = all_years          # [2020, 2021, …]
+        context["slider_min_year"]   = min_year
+        context["slider_max_year"]   = max_year
+        context["selected_year_from"] = active_year_from
+        context["selected_year_to"]   = active_year_to
+
+        # Line chart data aggregation (fixed order_by and values_list syntax)
+        linedata = (
             queryset
             .values("year")
             .annotate(total=Sum("value"))
             .order_by("year")
         )
 
-        context["line_chart_labels"] = [
-            str(row["year"]) for row in line_data
-        ]
+        context["line_chart_labels"] = [str(row["year"]) for row in linedata if row["year"]]
+        context["line_chart_values"] = [float(row["total"] or 0) for row in linedata if row["year"]]
 
-        context["line_chart_values"] = [
-            float(row["total"] or 0) for row in line_data
-        ]
+        # ── Map: load the right GeoJSON file per geography selection ─────────
+        map_geojson, map_name_prop = _load_geojson(geography)
+        context["map_geojson"]   = map_geojson
+        context["map_name_prop"] = map_name_prop
+        # Woreda file is large (1.8 MB) — serve it via the API instead of inline
+        context["map_use_api"]   = (geography == "woreda")
 
-        # Map aggregation
-        map_data = (
-            queryset
-            .values("location__name")
-            .annotate(total=Sum("value"))
-        )
-
-    
-        # value_lookup = {
-        #     row["location__name"]: float(row["totall"] or 0)
-        #     for row in map_data
-        # }
-
-        value_lookup = {
-            row["location__name"]: float(row["total"] or 0)
-            for row in map_data
-        }
+        return context    
 
 
-        geojson_path = (
-            Path(settings.BASE_DIR)
-            / "GE_Zones_2026"
-            / "Zones_2026.geojson"
-        )
+# ── /api/chart-data/ — JSON endpoint for live filter updates ─────────────────
+def chart_data_api(request):
+    """
+    Returns bar chart, line chart, table, and indicator name as JSON.
+    Accepts the same GET params as ObservationBarChartView.
+    Called by the live-filter JS on every sidebar change — no page reload needed.
+    """
+    from django.db.models import Sum
 
-        with open(geojson_path, encoding="utf-8") as f:
-            geojson = json.load(f)
+    geography    = request.GET.get("geography", "regional")
+    indicator_id = request.GET.get("indicator") or None
+    year_from    = request.GET.get("year_from")  or None
+    year_to      = request.GET.get("year_to")    or None
+    location_id  = request.GET.get("location")   or None
+    cause_id     = request.GET.get("cause")      or None
+    sex_id       = request.GET.get("sex")        or None
 
-        for feature in geojson["features"]:
-            zone_name = feature["properties"].get("ZONE_NAME")
+    all_years = sorted(
+        Observation.objects.values_list("year", flat=True).distinct()
+    )
+    min_year = all_years[0]  if all_years else 2000
+    max_year = all_years[-1] if all_years else 2025
+    active_from = int(year_from) if year_from else min_year
+    active_to   = int(year_to)   if year_to   else max_year
 
-            if zone_name in value_lookup:
-                print("MATCH:", zone_name)
+    # Indicator name
+    indicator_name = "-"
+    if indicator_id:
+        try:
+            indicator_name = Indicator.objects.get(pk=indicator_id).name
+        except Indicator.DoesNotExist:
+            pass
 
-            feature["properties"]["value"] = value_lookup.get(zone_name, 0)
+    qs = Observation.objects.select_related("location", "indicator")
 
-        context["map_geojson"] = json.dumps(geojson)
+    if geography == "national":
+        qs = qs.filter(location__level__iexact="country")
+    elif geography == "regional":
+        qs = qs.filter(location__level__in=["regional", "region", "Regional"])
+    elif geography == "zone":
+        qs = qs.filter(location__level__iexact="zone")
+    elif geography == "woreda":
+        qs = qs.filter(location__level__iexact="woreda")
 
-        return context
+    if indicator_id:
+        qs = qs.filter(indicator_id=indicator_id)
+    qs = qs.filter(year__gte=active_from, year__lte=active_to)
+    if location_id:
+        qs = qs.filter(location_id=location_id)
+    if cause_id:
+        qs = qs.filter(cause_id=cause_id)
+    if sex_id:
+        qs = qs.filter(sex_id=sex_id)
 
-        # 
+    # Bar chart: aggregate by location
+    bar_rows = (
+        qs.values("location__name")
+          .annotate(total=Sum("value"))
+          .order_by("-total")
+    )
+    bar_data = [
+        {"label": r["location__name"], "value": float(r["total"] or 0)}
+        for r in bar_rows if r["location__name"]
+    ]
+
+    # Line chart: aggregate by year
+    line_rows = (
+        qs.values("year")
+          .annotate(total=Sum("value"))
+          .order_by("year")
+    )
+    line_data = [
+        {"year": str(r["year"]), "value": float(r["total"] or 0)}
+        for r in line_rows if r["year"]
+    ]
+
+    return JsonResponse({
+        "indicator_name": indicator_name,
+        "bar":  bar_data,
+        "line": line_data,
+    })
+
+
+def geojson_api(request):
+    """
+    Serves a GeoJSON FeatureCollection for the requested admin level,
+    optionally merged with aggregated observation values from the DB.
+
+    Query params:
+      level       — regional | zone | woreda | national  (default: regional)
+      indicator   — indicator pk  (optional, filters observations)
+      year        — year integer  (optional)
+      topic       — topic pk      (optional)
+      sex         — sex pk        (optional)
+      cause       — cause pk      (optional)
+    """
+    geography    = request.GET.get("level", "regional")
+    indicator_id = request.GET.get("indicator")
+    year_from    = request.GET.get("year_from") or request.GET.get("year") or None
+    year_to      = request.GET.get("year_to")   or request.GET.get("year") or None
+    topic_id     = request.GET.get("topic")
+    sex_id       = request.GET.get("sex")
+    cause_id     = request.GET.get("cause")
+
+    geojson_str, name_prop = _load_geojson(geography)
+    geojson = json.loads(geojson_str)
+
+    # Build value lookup from filtered observations
+    qs = Observation.objects.select_related("location")
+
+    if geography == "national":
+        qs = qs.filter(location__level__iexact="country")
+    elif geography == "regional":
+        qs = qs.filter(location__level__in=["regional", "region", "Regional"])
+    elif geography == "zone":
+        qs = qs.filter(location__level__iexact="zone")
+    elif geography == "woreda":
+        qs = qs.filter(location__level__iexact="woreda")
+
+    if indicator_id:
+        qs = qs.filter(indicator_id=indicator_id)
+    if year_from:
+        qs = qs.filter(year__gte=int(year_from))
+    if year_to:
+        qs = qs.filter(year__lte=int(year_to))
+    if topic_id:
+        qs = qs.filter(indicator__topic_id=topic_id)
+    if sex_id:
+        qs = qs.filter(sex_id=sex_id)
+    if cause_id:
+        qs = qs.filter(cause_id=cause_id)
+
+    data_rows = (
+        qs.values("location__name")
+          .annotate(total=Sum("value"))
+    )
+    data_map = {
+        row["location__name"].strip().lower(): float(row["total"] or 0)
+        for row in data_rows
+        if row["location__name"]
+    }
+
+    # Attach values to each feature in-place
+    for feature in geojson.get("features", []):
+        raw_name = feature["properties"].get(name_prop) or ""
+        feature["properties"]["value"] = data_map.get(raw_name.strip().lower())
+
+    return JsonResponse(geojson, safe=False)
+
+
 def dashboard_view(request):
     if request.method == "POST" and "excel_file" in request.FILES:
         form = ExcelUploadForm(request.POST, request.FILES)
