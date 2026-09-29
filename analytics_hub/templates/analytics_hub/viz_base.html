@@ -88,47 +88,4 @@
     {% endif %}
 
 </div>
-
-<script>
-
-document.addEventListener('DOMContentLoaded', () => {
-
-    const tabs = document.querySelectorAll('.viz-tab');
-
-    tabs.forEach(tab => {
-
-        tab.addEventListener('click', () => {
-
-            document
-                .querySelectorAll('.viz-panel')
-                .forEach(panel => {
-                    panel.classList.add('hidden');
-                });
-
-            document
-                .querySelectorAll('.viz-tab')
-                .forEach(btn => {
-                    btn.classList.remove(
-                        'border-blue-600',
-                        'text-blue-600'
-                    );
-                });
-
-            tab.classList.add(
-                'border-blue-600',
-                'text-blue-600'
-            );
-
-            document
-                .getElementById(tab.dataset.target)
-                .classList.remove('hidden');
-
-        });
-
-    });
-
-});
-
-</script>
-
 {% endblock %}
