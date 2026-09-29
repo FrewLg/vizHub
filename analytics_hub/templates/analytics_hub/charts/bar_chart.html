@@ -12,7 +12,7 @@ Observation by Location
         <canvas id="barChart"></canvas>
     </div>
     <div class="mt-5 pb-2">
-        <h5 class="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Trend Over Time</h5>
+        <!-- <h5 class="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Trend Over Time</h5> -->
         <canvas id="lineChart" style="max-height:160px;"></canvas>
     </div>
 </div>
@@ -49,12 +49,12 @@ function buildCharts(barLabels, barValues, lineLabels, lineValues, indicatorName
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: { display: true },
-                    title:  { display: true, text: indicatorName + ' by Location' }
+                    // legend: { display: true },
+                    // title:  { display: true, text: indicatorName + ' by Location' }
                 },
                 scales: {
                     x: { ticks: { maxRotation: 45, minRotation: 45 } },
-                    y: { beginAtZero: true, title: { display: true, text: 'Value' } }
+                    y: { beginAtZero: true, title: { display: true, text: indicatorName+ ' Value' } }
                 }
             }
         });
@@ -62,16 +62,16 @@ function buildCharts(barLabels, barValues, lineLabels, lineValues, indicatorName
 
     // ── Line chart ────────────────────────────────────────────────────
     if (lineChart) {
-        lineChart.data.labels             = lineLabels;
-        lineChart.data.datasets[0].data  = lineValues;
+        lineChart.data.labels             =   lineLabels;
+        lineChart.data.datasets[0].data  =  lineValues;
         lineChart.update();
     } else {
         lineChart = new Chart(document.getElementById('lineChart'), {
             type: 'line',
             data: {
-                labels: lineLabels,
+                labels:  lineLabels  ,
                 datasets: [{
-                    label: 'Trend',
+                    label: indicatorName + ' Trend',
                     data: lineValues,
                     borderColor: '#2563eb',
                     backgroundColor: 'rgba(37,99,235,0.1)',
