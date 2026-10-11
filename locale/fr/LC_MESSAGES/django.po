@@ -1,18 +1,15 @@
-# SOME DESCRIPTIVE TITLE.
-# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
-# This file is distributed under the same license as the PACKAGE package.
-# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+# French translation for VizHub.
+# Copyright (C) 2026 EPHI
 #
-#, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: PACKAGE VERSION\n"
+"Project-Id-Version: VizHub\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-09-09 06:31+0000\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
-"Language-Team: LANGUAGE <LL@li.org>\n"
-"Language: \n"
+"PO-Revision-Date: 2026-09-09 06:31+0000\n"
+"Last-Translator: VizHub Team\n"
+"Language-Team: French\n"
+"Language: fr\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -20,65 +17,65 @@ msgstr ""
 
 #: analytics_hub/templates/analytics_hub/dashboard.html:169
 msgid "Health Data Visualization"
-msgstr ""
+msgstr "Visualisation des données de santé"
 
 #: analytics_hub/templates/analytics_hub/dashboard.html:217
 msgid "Advaced Search"
-msgstr ""
+msgstr "Recherche avancée"
 
 #: analytics_hub/templates/analytics_hub/dashboard.html:224
 msgid "Analytics Topic"
-msgstr ""
+msgstr "Sujet d'analyse"
 
 #: analytics_hub/templates/analytics_hub/dashboard.html:237
 msgid "Date Range"
-msgstr ""
+msgstr "Plage de dates"
 
 #: analytics_hub/templates/analytics_hub/dashboard.html:240
 msgid "From"
-msgstr ""
+msgstr "De"
 
 #: analytics_hub/templates/analytics_hub/dashboard.html:244
 msgid "To"
-msgstr ""
+msgstr "À"
 
 #: analytics_hub/templates/analytics_hub/dashboard.html:265
 msgid "Age Group"
-msgstr ""
+msgstr "Groupe d'âge"
 
 #: analytics_hub/templates/analytics_hub/dashboard.html:278
 msgid "Facility"
-msgstr ""
+msgstr "Établissement"
 
 #: analytics_hub/templates/analytics_hub/dashboard.html:291
 msgid "Location"
-msgstr ""
+msgstr "Lieu"
 
 #: analytics_hub/templates/analytics_hub/dashboard.html:304
 msgid "Apply Filters"
-msgstr ""
+msgstr "Appliquer les filtres"
 
 #: analytics_hub/templates/analytics_hub/dashboard.html:305
 msgid "Reset"
-msgstr ""
+msgstr "Réinitialiser"
 
 #: analytics_hub/templates/analytics_hub/dashboard.html:318
 #: analytics_hub/templates/analytics_hub/olddashboard.html:249
 msgid "Upload"
-msgstr ""
+msgstr "Téléverser"
 
 #: analytics_hub/templates/analytics_hub/dashboard.html:331
 msgid "Download PDF Report"
-msgstr ""
+msgstr "Télécharger le rapport PDF"
 
 #: analytics_hub/templates/analytics_hub/dashboard.html:349
 #: analytics_hub/templates/analytics_hub/dashboard.html:360
 msgid "Download chart"
-msgstr ""
+msgstr "Télécharger le graphique"
 
 #: analytics_hub/templates/analytics_hub/dashboard.html:372
 msgid "Download Table"
-msgstr ""
+msgstr "Télécharger le tableau"
 
 #: analytics_hub/templates/analytics_hub/olddashboard.html:127
 msgid "Global Burden of Disease (GBD) Analytics"
@@ -89,3 +86,71 @@ msgid ""
 "Filter public health surveillance parameters, view geomaps, and ingest "
 "dataset records securely"
 msgstr ""
+"Filtrer les paramètres de surveillance, consulter les géocartes et importer "
+"des ensembles de données en toute sécurité"
+
+msgid "Chart"
+msgstr "Graphique"
+
+msgid "Table"
+msgstr "Tableau"
+
+msgid "Map"
+msgstr "Carte"
+
+msgid "Smaller"
+msgstr "Réduire"
+
+msgid "Larger"
+msgstr "Agrandir"
+
+msgid "PNG"
+msgstr "PNG"
+
+msgid "Excel"
+msgstr "Excel"
+
+msgid "Observation by Location"
+msgstr "Observations par lieu"
+
+msgid "Trend Over Time"
+msgstr "Tendance dans le temps"
+
+msgid "By Cause / Disease"
+msgstr "Par cause / maladie"
+
+msgid "Filters"
+msgstr "Filtres"
+
+msgid "Geography Level"
+msgstr "Niveau géographique"
+
+msgid "National"
+msgstr "National"
+
+msgid "Regional"
+msgstr "Régional"
+
+msgid "Zone"
+msgstr "Zone"
+
+msgid "Woreda"
+msgstr "Woreda"
+
+msgid "Topic"
+msgstr "Sujet"
+
+msgid "Indicator"
+msgstr "Indicateur"
+
+msgid "Sex"
+msgstr "Sexe"
+
+msgid "Cause"
+msgstr "Cause"
+
+msgid "Years"
+msgstr "Années"
+
+msgid "Reset Filters"
+msgstr "Réinitialiser les filtres"

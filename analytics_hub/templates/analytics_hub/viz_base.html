@@ -15,7 +15,7 @@
 
             <p class="text-xs text-gray-500 dark:text-gray-400">
                 {% block viz_description %}
-                <strong>{{ indicator_name }}</strong>
+                <strong id="viz-indicator-label">{{ indicator_name }}</strong>
                 {% endblock %}
             </p>
         </div>
@@ -63,7 +63,8 @@
 
     </div>
 
-    <!-- Table -->
+      
+   
 
     <div
         id="table-panel"
@@ -86,6 +87,5 @@
 
     </div>
     {% endif %}
-
-</div>
+ 
 {% endblock %}

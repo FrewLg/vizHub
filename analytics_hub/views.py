@@ -13,6 +13,7 @@ from .services.chart_builder import build_chart_data
 from django.db.models import Avg, Sum, Count, Max
 from .forms import ExcelUploadForm  
 from django.views.generic import TemplateView
+import plotly.graph_objects as go
 
  
 from .models import (
@@ -171,6 +172,65 @@ class ObservationBarChartView(TemplateView):
         context["line_chart_labels"] = [str(row["year"]) for row in linedata if row["year"]]
         context["line_chart_values"] = [float(row["total"] or 0) for row in linedata if row["year"]]
 
+        # ── Build three separate Plotly figures ───────────────────────────────
+        bar_labels = [row["location__name"] for row in data if row["location__name"]]
+        bar_values = [float(row["total"] or 0) for row in data if row["location__name"]]
+        line_labels = [str(row["year"]) for row in linedata if row["year"]]
+        line_values = [float(row["total"] or 0) for row in linedata if row["year"]]
+
+        _CAUSE_COLORS = [
+            "#06439e","#21b24b","#1a5cbf","#0e8a4a","#3b82f6",
+            "#10b981","#6366f1","#14b8a6","#8b5cf6","#f59e0b",
+        ]
+        _layout = dict(
+            margin=dict(l=40, r=20, t=44, b=40),
+            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+            font=dict(family="Inter, system-ui, sans-serif", size=12, color="#1a2340"),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            hovermode="x unified",
+        )
+
+        fig_bar = go.Figure()
+        fig_bar.add_trace(go.Bar(
+            x=bar_labels, y=bar_values, name=indicator_name,
+            marker_color="#06439e", marker_line_color="#032a68", marker_line_width=0.8,
+            hovertemplate="<b>%{x}</b><br>Value: %{y:,.2f}<extra></extra>",
+        ))
+        fig_bar.update_layout(**_layout, bargap=0.25)
+        fig_bar.update_xaxes(showgrid=False, tickangle=-40)
+        fig_bar.update_yaxes(gridcolor="rgba(219,232,251,0.6)", title_text=f"{indicator_name} Value")
+
+        fig_trend = go.Figure()
+        fig_trend.add_trace(go.Scatter(
+            x=line_labels, y=line_values, mode="lines+markers", name="Trend",
+            line=dict(color="#21b24b", width=2.5), marker=dict(size=6, color="#21b24b"),
+            fill="tozeroy", fillcolor="rgba(33,178,75,0.08)",
+            hovertemplate="Year: %{x}<br>Value: %{y:,.2f}<extra></extra>",
+        ))
+        fig_trend.update_layout(**_layout)
+        fig_trend.update_xaxes(showgrid=False)
+        fig_trend.update_yaxes(gridcolor="rgba(219,232,251,0.6)", title_text="Value")
+
+        cause_qs = (
+            queryset.values("cause__name").annotate(total=Sum("value")).order_by("-total")
+        )
+        cause_labels = [r["cause__name"] for r in cause_qs if r["cause__name"]]
+        cause_values = [float(r["total"] or 0) for r in cause_qs if r["cause__name"]]
+        fig_cause = go.Figure()
+        fig_cause.add_trace(go.Bar(
+            x=cause_labels, y=cause_values, name="By Cause/Disease",
+            marker_color=[_CAUSE_COLORS[i % len(_CAUSE_COLORS)] for i in range(len(cause_labels))],
+            marker_line_color="rgba(0,0,0,0.15)", marker_line_width=0.6,
+            hovertemplate="<b>%{x}</b><br>Value: %{y:,.2f}<extra></extra>",
+        ))
+        fig_cause.update_layout(**_layout, bargap=0.3)
+        fig_cause.update_xaxes(showgrid=False, tickangle=-40)
+        fig_cause.update_yaxes(gridcolor="rgba(219,232,251,0.6)", title_text="Value")
+
+        context["plotly_json_bar"]   = fig_bar.to_json()
+        context["plotly_json_trend"] = fig_trend.to_json()
+        context["plotly_json_cause"] = fig_cause.to_json()
+
         # ── Map: load the right GeoJSON file per geography selection ─────────
         map_geojson, map_name_prop = _load_geojson(geography)
         context["map_geojson"]   = map_geojson
@@ -257,10 +317,73 @@ def chart_data_api(request):
         for r in line_rows if r["year"]
     ]
 
+    # ── Build three separate Plotly figures ───────────────────────────────────
+    bar_labels_p  = [d["label"] for d in bar_data]
+    bar_values_p  = [d["value"] for d in bar_data]
+    line_labels_p = [d["year"]  for d in line_data]
+    line_values_p = [d["value"] for d in line_data]
+
+    _CAUSE_COLORS = [
+        "#06439e","#21b24b","#1a5cbf","#0e8a4a","#3b82f6",
+        "#10b981","#6366f1","#14b8a6","#8b5cf6","#f59e0b",
+    ]
+    _layout = dict(
+        margin=dict(l=40, r=20, t=44, b=40),
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(family="Inter, system-ui, sans-serif", size=12, color="#1a2340"),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        hovermode="x unified",
+    )
+
+    fig_bar = go.Figure()
+    fig_bar.add_trace(go.Bar(
+        x=bar_labels_p, y=bar_values_p, name=indicator_name,
+        marker_color="#06439e", marker_line_color="#032a68", marker_line_width=0.8,
+        hovertemplate="<b>%{x}</b><br>Value: %{y:,.2f}<extra></extra>",
+    ))
+    fig_bar.update_layout(**_layout, bargap=0.25)
+    fig_bar.update_xaxes(showgrid=False, tickangle=-40)
+    fig_bar.update_yaxes(gridcolor="rgba(219,232,251,0.6)", title_text=f"{indicator_name} Value")
+
+    fig_trend = go.Figure()
+    fig_trend.add_trace(go.Scatter(
+        x=line_labels_p, y=line_values_p, mode="lines+markers", name="Trend",
+        line=dict(color="#21b24b", width=2.5), marker=dict(size=6, color="#21b24b"),
+        fill="tozeroy", fillcolor="rgba(33,178,75,0.08)",
+        hovertemplate="Year: %{x}<br>Value: %{y:,.2f}<extra></extra>",
+    ))
+    fig_trend.update_layout(**_layout)
+    fig_trend.update_xaxes(showgrid=False)
+    fig_trend.update_yaxes(gridcolor="rgba(219,232,251,0.6)", title_text="Value")
+
+    cause_rows = (
+        qs.values("cause__name").annotate(total=Sum("value")).order_by("-total")
+    )
+    cause_data = [
+        {"label": r["cause__name"], "value": float(r["total"] or 0)}
+        for r in cause_rows if r["cause__name"]
+    ]
+    cause_labels_p = [d["label"] for d in cause_data]
+    cause_values_p = [d["value"] for d in cause_data]
+    fig_cause = go.Figure()
+    fig_cause.add_trace(go.Bar(
+        x=cause_labels_p, y=cause_values_p, name="By Cause/Disease",
+        marker_color=[_CAUSE_COLORS[i % len(_CAUSE_COLORS)] for i in range(len(cause_labels_p))],
+        marker_line_color="rgba(0,0,0,0.15)", marker_line_width=0.6,
+        hovertemplate="<b>%{x}</b><br>Value: %{y:,.2f}<extra></extra>",
+    ))
+    fig_cause.update_layout(**_layout, bargap=0.3)
+    fig_cause.update_xaxes(showgrid=False, tickangle=-40)
+    fig_cause.update_yaxes(gridcolor="rgba(219,232,251,0.6)", title_text="Value")
+
     return JsonResponse({
-        "indicator_name": indicator_name,
-        "bar":  bar_data,
-        "line": line_data,
+        "indicator_name":    indicator_name,
+        "bar":               bar_data,
+        "line":              line_data,
+        "cause":             cause_data,
+        "plotly_json_bar":   fig_bar.to_json(),
+        "plotly_json_trend": fig_trend.to_json(),
+        "plotly_json_cause": fig_cause.to_json(),
     })
 
 

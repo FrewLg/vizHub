@@ -379,17 +379,23 @@
 
         <div class="flex items-center space-x-3">
             {% get_current_language as CURRENT_LANG %}
+          
+            
             <div class="flex items-center space-x-0.5 bg-gray-100 dark:bg-gray-700/60 p-0.5 rounded-lg">
-                <form action="{% url 'set_language' %}" method="POST" class="inline flex items-center">
-                    {% csrf_token %}
-                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                    <button type="submit" name="language" value="en"
-                        class="px-2.5 py-1 rounded-md text-[11px] font-semibold transition
-                               {% if CURRENT_LANG == 'en' %}bg-white dark:bg-[#06439e] text-[#06439e] dark:text-white shadow-sm{% else %}text-gray-500 dark:text-gray-400{% endif %}">EN</button>
-                    <button type="submit" name="language" value="am"
-                        class="px-2.5 py-1 rounded-md text-[11px] font-semibold transition
-                               {% if CURRENT_LANG == 'am' %}bg-white dark:bg-[#06439e] text-[#06439e] dark:text-white shadow-sm{% else %}text-gray-500 dark:text-gray-400{% endif %}">አማ</button>
-                </form>
+                {# Hidden CSRF anchor so switchLanguage() can always find a token #}
+                <span id="lang-csrf-holder" hidden>{% csrf_token %}</span>
+                <button onclick="switchLanguage('en')" type="button"
+                    class="px-2.5 py-1 rounded-md text-[11px] font-semibold transition
+                           {% if CURRENT_LANG == 'en' %}bg-white dark:bg-[#06439e] text-[#06439e] dark:text-white shadow-sm
+                           {% else %}text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200{% endif %}">EN</button>
+                <button onclick="switchLanguage('am')" type="button"
+                    class="px-2.5 py-1 rounded-md text-[11px] font-semibold transition
+                           {% if CURRENT_LANG == 'am' %}bg-white dark:bg-[#06439e] text-[#06439e] dark:text-white shadow-sm
+                           {% else %}text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200{% endif %}">አማ</button>
+                <button onclick="switchLanguage('fr')" type="button"
+                    class="px-2.5 py-1 rounded-md text-[11px] font-semibold transition
+                           {% if CURRENT_LANG == 'fr' %}bg-white dark:bg-[#06439e] text-[#06439e] dark:text-white shadow-sm
+                           {% else %}text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200{% endif %}">FR</button>
             </div>
 
             <button onclick="toggleTheme()"
@@ -529,9 +535,7 @@
                 <button onclick="toggleFacets()" class="btn-toggle" title="Toggle filters">
                     <span style="font-size:15px;line-height:1;">☰</span>
                 </button>
-                <div class="flex items-center gap-2">
-                    <button onclick="toggleUploadModal()" class="btn-upload">⬆ {% trans "Upload Data" %}</button>
-                </div>
+                 <!--  top sright side buton -->
             </header>
 
             
@@ -672,7 +676,40 @@
  </script>
 
 <script>
-    
+
+// ── Language switcher ─────────────────────────────────────────────────────────
+// Called by the EN / አማ / FR buttons. Builds + submits a hidden form so we
+// can set the `next` param at click-time (full query string is available).
+function switchLanguage(lang) {
+    // Get CSRF token — prefer an existing hidden input on the page (always
+    // the decoded value), fall back to the cookie with URL-decode.
+    var csrfInput = document.querySelector('#lang-csrf-holder [name="csrfmiddlewaretoken"]')
+                 || document.querySelector('[name="csrfmiddlewaretoken"]');
+    var csrf = csrfInput
+        ? csrfInput.value
+        : decodeURIComponent((document.cookie.match(/csrftoken=([^;]+)/) || ['',''])[1]);
+
+    // Strip /xx/ language prefix from the current path so Django's
+    // set_language view prepends the new language code instead.
+    // The full query string (?geography=zone&indicator=5 etc.) is kept.
+    var stripped = window.location.pathname
+        .replace(/^\/[a-z]{2}(-[A-Za-z]{2})?(\/|$)/, '/');
+    var nextUrl = stripped + window.location.search;
+
+    var f = document.createElement('form');
+    f.method = 'POST';
+    f.action = '{% url "set_language" %}';
+    f.style.display = 'none';
+    [['csrfmiddlewaretoken', csrf], ['language', lang], ['next', nextUrl]]
+        .forEach(function(pair) {
+            var inp = document.createElement('input');
+            inp.type = 'hidden'; inp.name = pair[0]; inp.value = pair[1];
+            f.appendChild(inp);
+        });
+    document.body.appendChild(f);
+    f.submit();
+}
+
 (function () {
     "use strict";
 
@@ -761,35 +798,48 @@
         fetch("/api/chart-data/?" + params.toString())
             .then(r => r.ok ? r.json() : Promise.reject(r.status))
             .then(data => {
-                // ── Update charts (buildCharts defined in bar_chart.html) ──
+                // ── Update charts ─────────────────────────────────────────
                 if (typeof buildCharts === "function") {
                     const barLabels  = data.bar.map(d => d.label);
                     const barValues  = data.bar.map(d => d.value);
                     const lineLabels = data.line.map(d => d.year);
                     const lineValues = data.line.map(d => d.value);
-                    buildCharts(barLabels, barValues, lineLabels, lineValues,
-                                data.indicator_name);
+                    buildCharts(barLabels, barValues, lineLabels, lineValues, data.indicator_name);
                 }
 
                 // ── Update data table ─────────────────────────────────────
                 const tbody = document.querySelector("#data-table tbody");
                 if (tbody) {
-                    tbody.innerHTML = data.bar.map(row =>
-                        `<tr class="border-t">
+                    tbody.innerHTML = data.bar.map((row, i) =>
+                        `<tr class="border-t ${i%2===0?'bg-white dark:bg-gray-800':'bg-[#f5f8ff] dark:bg-gray-700/50'} hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
                            <td class="p-2">${row.label}</td>
-                           <td class="p-2 text-right">${row.value.toLocaleString(undefined, {maximumFractionDigits:2})}</td>
+                           <td class="p-2 text-right tabular-nums">${row.value.toLocaleString(undefined,{maximumFractionDigits:2})}</td>
                          </tr>`
                     ).join("");
                 }
 
-                // ── Update indicator title ────────────────────────────────
-                const titleEl = document.querySelector(".viz-description strong");
-                if (titleEl) titleEl.textContent = data.indicator_name;
+                // ── Update indicator title & chart card labels ────────────
+                const name = data.indicator_name || '-';
+                window._currentIndicatorName = name;
+
+                // Main card subtitle (viz_base.html)
+                const mainLabel = document.getElementById('viz-indicator-label');
+                if (mainLabel) mainLabel.textContent = name;
+
+                // Chart card headings (bar_chart.html)
+                const barTitle  = document.getElementById('bar-card-title');
+                const lineTitle = document.getElementById('line-card-title');
+                if (barTitle)  barTitle.textContent  = name + ' — by Location';
+                if (lineTitle) lineTitle.textContent = name + ' — Trend Over Time';
+
+                // Map legend title (updated immediately, before refreshMap fires)
+                const legendTitle = document.getElementById('legend-title');
+                if (legendTitle) { legendTitle.textContent = name; legendTitle.title = name; }
             })
             .catch(err => console.error("Chart data fetch error:", err))
             .finally(() => setLoading(false));
 
-        // 3. Refresh map via geojson_api (uses same params + level=geography)
+        // 3. Refresh map — fired after _currentIndicatorName is already set
         if (typeof refreshMap === "function") {
             refreshMap(params);
         }

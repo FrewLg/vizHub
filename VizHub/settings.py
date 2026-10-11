@@ -280,14 +280,11 @@ USE_TZ = True
 LANGUAGE_CODE = 'en'
 LANGUAGES = [
     ('en', 'English'),
+    ('am', 'አማርኛ'),
     ('fr', 'Français'),
-    # ('am', 'Français'),
- 
-    ('es', 'Español'),
 ]
 
 USE_I18N = True
-# Note: USE_L10N was deprecated/removed in Django 5.x, you can safely remove it
 
 LOCALE_PATHS = [
     os.path.join(BASE_DIR, 'locale'),
