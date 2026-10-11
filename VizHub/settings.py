@@ -198,14 +198,24 @@ AUTHENTICATION_BACKENDS = [
 ]
 SITE_ID = 1
 
+SOCIALACCOUNT_ADAPTER = 'allauth.socialaccount.adapter.DefaultSocialAccountAdapter'
 # Redirect configuration after login/logout
 LOGIN_REDIRECT_URL = '/'
 ACCOUNT_LOGOUT_REDIRECT_URL = '/'
 
-# Allauth specific settings
 ACCOUNT_EMAIL_REQUIRED = True
 ACCOUNT_AUTHENTICATION_METHOD = 'email'
 ACCOUNT_USERNAME_REQUIRED = False
+
+# Trust email verification from social providers (e.g. Google)
+SOCIALACCOUNT_EMAIL_VERIFICATION = "none"
+
+# Skip the extra confirmation/signup step after OAuth login
+SOCIALACCOUNT_AUTO_SIGNUP = True
+
+# Automatically connect social account to an existing account with matching email
+SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True
+
 
 ROOT_URLCONF = "VizHub.urls"
 
@@ -219,6 +229,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "analytics_hub.context_processors.google_client_id",
             ],
         },
     },
@@ -280,7 +291,8 @@ USE_TZ = True
 LANGUAGE_CODE = 'en'
 LANGUAGES = [
     ('en', 'English'),
-    ('am', 'አማርኛ'),
+    # ('am', 'አማርኛ'),
+    ('am', 'Amharic'),
     ('fr', 'Français'),
 ]
 
@@ -305,8 +317,9 @@ STATICFILES_DIRS = [
 ]
 
 
-# STATIC_ROOT = os.path.join(BASE_DIR, 'static')
- 
+# settings.py
+
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 ANALYSIS_CONFIG = {
